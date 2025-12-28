@@ -1,1 +1,20 @@
+# Session and data
+session/
+data/
+tmp/
+logs/
+*.log
+
+# Dependencies
+node_modules/
+
+# Large files
+*.mp4
+*.mp3
+*.zip
+*.rar
+*.tar
+*.gz
+
+# Environment
 .env
