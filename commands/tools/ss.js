@@ -1,5 +1,6 @@
 // commands/tools/screenshot.js
 import fetch from "node-fetch";
+import { downloadMediaMessage } from "@whiskeysockets/baileys";
 
 export default {
   name: "ss",
@@ -137,11 +138,11 @@ export default {
         }
         
         // Use fallback result
-        return await sendScreenshot(sock, jid, fallbackResult, url, options, processingMsg, m);
+        return sendScreenshot(sock, jid, fallbackResult, url, options, processingMsg);
       }
 
       // Send successful result
-      await sendScreenshot(sock, jid, result, url, options, processingMsg, m);
+      await sendScreenshot(sock, jid, result, url, options, processingMsg);
 
     } catch (err) {
       console.error("❌ [SCREENSHOT ERROR]:", err);
@@ -484,7 +485,7 @@ function isBlockedUrl(url) {
   return blockedDomains.some(domain => lowerUrl.includes(domain));
 }
 
-async function sendScreenshot(sock, jid, result, url, options, processingMsg, originalMessage) {
+async function sendScreenshot(sock, jid, result, url, options, processingMsg) {
   const fileSizeMB = (result.size || result.image.length) / (1024 * 1024);
   const caption = `📸 *Website Screenshot*\n\n` +
                   `🌐 *URL:* ${url}\n` +
@@ -505,19 +506,14 @@ async function sendScreenshot(sock, jid, result, url, options, processingMsg, or
         caption: caption,
         mimetype: 'image/png'
       },
-      { quoted: originalMessage }
+      { quoted: m }
     );
     
-    // Try to delete processing message (if supported)
-    try {
-      await sock.sendMessage(
-        jid,
-        { delete: processingMsg.key }
-      );
-    } catch (deleteError) {
-      // Ignore delete errors
-      console.log("Could not delete processing message:", deleteError.message);
-    }
+    // Delete processing message
+    await sock.sendMessage(
+      jid,
+      { delete: processingMsg.key }
+    );
     
   } catch (sendError) {
     console.error("Send error:", sendError);
@@ -532,7 +528,7 @@ async function sendScreenshot(sock, jid, result, url, options, processingMsg, or
               `📊 Size: ${fileSizeMB.toFixed(2)} MB\n` +
               `🔧 Use browser to view: ${url}`
       },
-      { quoted: originalMessage }
+      { quoted: m }
     );
   }
 }
