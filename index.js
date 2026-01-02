@@ -228,6 +228,7 @@ import { handleAutoReact } from './commands/automation/autoreactstatus.js';
 import { handleAutoView } from './commands/automation/autoviewstatus.js';
 import { initializeAutoJoin } from './commands/group/add.js';
 import antidemote from './commands/group/antidemote.js';
+import banCommand from './commands/group/ban.js';
 // Add to your commands list
 
 
