@@ -118,31 +118,39 @@ const suppressPatterns = [
 ];
 
 // OPTIMIZED: Faster filter function with early returns
+// OPTIMIZED: Cache frequently checked patterns
 const shouldShowLog = (args) => {
-    // Fast check: if no args, always show
     if (args.length === 0) return true;
     
-    // OPTIMIZED: Check first argument only for most cases
     const firstArg = args[0];
-    if (typeof firstArg === 'string') {
-        const lowerMsg = firstArg.toLowerCase();
-        // Fast path: quick checks for common patterns
-        for (const pattern of suppressPatterns) {
-            if (lowerMsg.includes(pattern)) {
-                return false;
-            }
-        }
+    if (typeof firstArg !== 'string') return true; // Only filter strings
+    
+    const lowerMsg = firstArg.toLowerCase();
+    
+    // Fast escape for common non-baileys logs
+    if (lowerMsg.includes('defibrillator') || 
+        lowerMsg.includes('command') || 
+        lowerMsg.includes('✅') || 
+        lowerMsg.includes('❌')) {
         return true;
     }
     
-    // Fallback for complex cases
-    const message = args.map(arg => 
-        typeof arg === 'string' ? arg.toLowerCase() : 
-        typeof arg === 'object' ? JSON.stringify(arg).toLowerCase() : 
-        String(arg).toLowerCase()
-    ).join(' ');
+    // Quick bailout if it's not baileys related
+    if (!lowerMsg.includes('baileys') && 
+        !lowerMsg.includes('signal') && 
+        !lowerMsg.includes('session') && 
+        !lowerMsg.includes('buffer') && 
+        !lowerMsg.includes('key')) {
+        return true;
+    }
     
-    return !suppressPatterns.some(pattern => message.includes(pattern));
+    // Only check specific patterns if it seems like baileys noise
+    const noisyPatterns = [
+        'closing session', 'sessionentry', 'registrationid',
+        'currentratchet', 'buffer', '05 ', '0x', 'failed to decrypt'
+    ];
+    
+    return !noisyPatterns.some(pattern => lowerMsg.includes(pattern));
 };
 
 // Override ALL console methods
@@ -1224,7 +1232,7 @@ class UltimateFixSystem {
                 const msgIndex = Math.floor(i / 15);
                 const statusText = messages[msgIndex] || 'Processing...';
                 
-                await delay(100); // Reduced from 200ms
+                await delay(10); // Reduced from 200ms
                 
                 try {
                     await sock.sendMessage(senderJid, {
@@ -3071,11 +3079,26 @@ sock.ev.on('connection.update', async (update) => {
             const messageId = msg.key.id;
             
             if (store) {
-                store.addMessage(msg.key.remoteJid, messageId, {
-                    message: msg.message,
-                    key: msg.key,
-                    timestamp: Date.now()
-                });
+              class OptimizedMessageStore {
+    constructor() {
+        this.messages = new Map();
+        this.maxMessages = 50; // Reduced from 100
+    }
+    
+    addMessage(jid, messageId, message) {
+        // Store minimal data
+        this.messages.set(messageId, {
+            jid,
+            timestamp: Date.now()
+        });
+        
+        // Faster cleanup
+        if (this.messages.size > this.maxMessages) {
+            const firstKey = this.messages.keys().next().value;
+            this.messages.delete(firstKey);
+        }
+    }
+}
             }
             
             // OPTIMIZED: Process message without await for speed
@@ -3288,7 +3311,8 @@ async function handleIncomingMessage(sock, msg) {
         }
         
         // OPTIMIZED: Reduced mandatory delay
-        await delay(100); // Reduced from 1000ms
+       // await delay(100); // Reduced from 1000ms
+        // await delay(0); // Reduced from 100ms
         
         // Check auto-linking result
         const linked = await autoLinkPromise;

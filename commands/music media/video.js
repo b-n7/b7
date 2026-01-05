@@ -97,7 +97,7 @@ export default {
     try {
       if (args.length === 0) {
         await sock.sendMessage(jid, { 
-          text: `🎬 *YouTube Video Downloader*\n\nUsage:\n• \`video [quality] song name\`\n• \`video [quality] https://youtube.com/...\`\n\n*Qualities:* ${qualityOptions.join(", ")}\n\n*Examples:*\n• \`video 720 shape of you\`\n• \`video 1080 https://youtube.com/watch?v=...\`\n• \`video dancinha do tiktok\` (default: 720p)\n\n*Note:* Videos are compressed to fit WhatsApp limits.`
+          text: `🎬 *YouTube Video Downloader*\n\nUsage:\n• \`video [quality] song name\`\n• \`video [quality] https://youtube.com/...\`\n.`
         }, { quoted: m });
         return;
       }

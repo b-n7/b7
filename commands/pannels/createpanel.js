@@ -82,28 +82,79 @@ class WolfHostAPI {
     }
   }
   
-  // Create user
-  async createUser(email, username, firstName, lastName) {
+  // Generate random password
+  static generateRandomPassword(length = 12) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
+  
+  // Create user WITH PASSWORD
+  async createUser(email, username, firstName, lastName, password = null) {
     try {
       console.log(`Creating user: ${email}`);
       
-      const response = await this.client.post('/application/users', {
-        email: email,
-        username: username,
-        first_name: firstName,
-        last_name: lastName,
-        language: "en",
-        root_admin: false
-      });
+      // Generate password if not provided
+      const userPassword = password || WolfHostAPI.generateRandomPassword(12);
+      
+      // Try different API formats based on Pterodactyl version
+      const payloads = [
+        // Format 1: With password field (newer versions)
+        {
+          email: email,
+          username: username,
+          first_name: firstName,
+          last_name: lastName,
+          password: userPassword,
+          language: "en",
+          root_admin: false
+        },
+        // Format 2: Without password (older versions)
+        {
+          email: email,
+          username: username,
+          first_name: firstName,
+          last_name: lastName,
+          language: "en",
+          root_admin: false
+        }
+      ];
+      
+      let response;
+      let usedPasswordFormat = true;
+      
+      // Try first format (with password)
+      try {
+        response = await this.client.post('/application/users', payloads[0]);
+        console.log(`✅ User created with password format`);
+      } catch (error) {
+        // If password field causes error, try without password
+        if (error.response?.status === 422 && error.response?.data?.errors?.some(e => 
+          e.detail?.includes('password') || e.source?.includes('password')
+        )) {
+          console.log(`⚠️ Password field not accepted, trying without password`);
+          response = await this.client.post('/application/users', payloads[1]);
+          usedPasswordFormat = false;
+        } else {
+          throw error;
+        }
+      }
+      
+      const userData = response.data.attributes;
       
       return {
         success: true,
         user: {
-          email: response.data.attributes.email,
-          username: response.data.attributes.username,
-          password: response.data.attributes.password,
-          id: response.data.attributes.id
-        }
+          email: userData.email,
+          username: userData.username,
+          password: usedPasswordFormat ? userPassword : "Set via 'Forgot Password'",
+          id: userData.id,
+          createdAt: userData.created_at
+        },
+        passwordProvided: usedPasswordFormat
       };
     } catch (error) {
       console.error("Create user error:", error.response?.status, error.response?.data);
@@ -123,6 +174,27 @@ class WolfHostAPI {
     const clean = base.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10);
     const random = Math.floor(10000 + Math.random() * 90000);
     return (clean || 'user') + random;
+  }
+  
+  // Try to set password after user creation (alternative method)
+  async setUserPassword(userId, password) {
+    try {
+      // Try to update user with password (if API supports it)
+      const response = await this.client.patch(`/application/users/${userId}`, {
+        password: password
+      });
+      
+      return {
+        success: true,
+        message: 'Password set successfully'
+      };
+    } catch (error) {
+      console.error("Set password error:", error.response?.status, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 
@@ -164,14 +236,16 @@ export default {
           text: `🐺 *Wolf-Host Panel Creator*\n\n` +
                 `*Usage:*\n` +
                 `• \`createpanel email@example.com\`\n` +
-                `• \`createpanel email@example.com "First" "Last"\`\n\n` +
+                `• \`createpanel email@example.com "First" "Last"\`\n` +
+                `• \`createpanel email@example.com "First" "Last" password123\`\n\n` +
                 `*Setup Commands:*\n` +
                 `• \`createpanel fixperms\` - Fix permission error\n` +
                 `• \`createpanel test\` - Test connection\n` +
                 `• \`createpanel key\` - Check API key\n\n` +
                 `*Examples:*\n` +
                 `• createpanel user@gmail.com\n` +
-                `• createpanel user@gmail.com "John" "Doe"\n\n` +
+                `• createpanel user@gmail.com "John" "Doe"\n` +
+                `• createpanel user@gmail.com "John" "Doe" MySecret123\n\n` +
                 `*Panel:* ${PANEL_BASE_URL}`
         }, { quoted: m });
         return;
@@ -271,10 +345,20 @@ export default {
       
       let firstName = "User";
       let lastName = email.split('@')[0];
+      let customPassword = null;
       
+      // Parse arguments
       if (args.length >= 3) {
         firstName = args[1].replace(/"/g, '');
         lastName = args[2].replace(/"/g, '');
+        
+        // Check if 4th argument is a password (not another name part)
+        if (args.length >= 4) {
+          // If 4th arg doesn't look like a name (no quotes, not likely a name)
+          if (!args[3].includes('"') && args[3].length >= 6) {
+            customPassword = args[3];
+          }
+        }
       } else if (args.length === 2) {
         firstName = args[1].replace(/"/g, '');
       }
@@ -288,32 +372,56 @@ export default {
         text: `🐺 *Creating Account*\n\n` +
               `📧 Email: ${email}\n` +
               `👤 Username: ${username}\n` +
-              `👤 Name: ${firstName} ${lastName}\n\n` +
+              `👤 Name: ${firstName} ${lastName}\n` +
+              `${customPassword ? `🔑 Custom Password: Yes` : `🔑 Auto Password: Yes`}\n\n` +
               `⏳ Processing...`
       }, { quoted: m });
       
       // Create user
-      const result = await api.createUser(email, username, firstName, lastName);
+      const result = await api.createUser(email, username, firstName, lastName, customPassword);
       
       if (result.success) {
         const user = result.user;
         
         await sock.sendMessage(jid, { 
           text: `🎉 *Account Created Successfully!*\n\n` +
-                `*Details:*\n` +
+                `*Account Details:*\n` +
                 `📧 Email: \`${user.email}\`\n` +
                 `👤 Username: \`${user.username}\`\n` +
                 `🔑 Password: \`${user.password}\`\n` +
-                `🆔 ID: ${user.id}\n\n` +
+                `🆔 User ID: ${user.id}\n` +
+                `📅 Created: ${new Date(user.createdAt).toLocaleString() || 'Just now'}\n\n` +
                 `*Login Instructions:*\n` +
                 `1. Go to ${PANEL_BASE_URL}\n` +
-                `2. Login with above credentials\n` +
-                `3. *Change password immediately*\n\n` +
-                `*Panel URL:* ${PANEL_BASE_URL}`,
+                `2. Login with credentials above\n` +
+                `3. *Change password after first login*\n\n` +
+                `*Important Links:*\n` +
+                `🔗 Login: ${PANEL_BASE_URL}/auth/login\n` +
+                `🔗 Forgot Password: ${PANEL_BASE_URL}/auth/password\n\n` +
+                `*Note:* ${!result.passwordProvided ? 
+                  'Password was auto-generated. User can change it after login.' : 
+                  'Password set successfully via API.'}`,
           edit: statusMsg.key 
         });
         
-        console.log(`✅ Account created: ${email}`);
+        console.log(`✅ Account created: ${email} (User ID: ${user.id})`);
+        
+        // If password wasn't set via API, try alternative method
+        if (!result.passwordProvided) {
+          console.log(`🔄 Trying alternative password setting method...`);
+          
+          // Try to set password via PATCH request
+          const passwordResult = await api.setUserPassword(user.id, user.password);
+          
+          if (passwordResult.success) {
+            await sock.sendMessage(jid, {
+              text: `✅ *Password Successfully Set!*\n\n` +
+                    `The password has been configured for the user.\n` +
+                    `User can now login with: \`${user.password}\``
+            });
+          }
+        }
+        
       } else {
         let errorMsg = `❌ *Failed to Create Account*\n\n`;
         
@@ -327,6 +435,7 @@ export default {
           errorMsg += `4. Try again`;
         } else if (result.status === 422 && result.isDuplicate) {
           errorMsg += `*Error:* Email or username already exists\n`;
+          errorMsg += `The email ${email} is already registered.\n`;
           errorMsg += `Try a different email address.`;
         } else if (result.status === 401) {
           errorMsg += `*Error:* Invalid API Key (401)\n`;
@@ -356,3 +465,34 @@ export default {
     }
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
