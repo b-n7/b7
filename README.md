@@ -1,71 +1,63 @@
 <div align="center"> 
+<strong>🐺 𝕎𝕆𝕃𝔽 𝔹𝕆𝕋</strong>
+    <br>
   <a href="https://git.io/typing-svg"> 
-    <img src="https://readme-typing-svg.demolab.com?font=Rockwell&size=50&pause=1000&color=33ff00&center=true&width=910&height=100&lines=WolfBot;Predator+Bot;Made+By+Silent+Wolf" alt="Typing SVG" style="font-size: 50px;"/>
+    <img src="https://readme-typing-svg.demolab.com?font=Orbitron&size=50&pause=1000&color=33ff00&center=true&width=910&height=100&lines=WOLFBOT;Predator+Bot;Made+By+Silent+Wolf" alt="Typing SVG" style="font-size: 50px;"/>
   </a> 
 </div> 
+
 <p align="center">
-  <img style ="width: 500px; height: 600px;" src="https://i.ibb.co/HDCwvyhT/wolfbot.jpg" alt="Wolf Bot — Silent Wolf Aura" />
+  <img style="width: 500px; height: 500px; border-radius: 20px; box-shadow: 0 0 30px #00ff00, 0 0 50px rgba(0, 255, 0, 0.3);" src="https://i.ibb.co/HDCwvyhT/wolfbot.jpg" alt="Wolf Bot — Silent Wolf Aura" />
 </p>
 
-<h1 align="center">
+<div align="center">
+  <h1 style="color: #00ff00; text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;">
+<br>
+    <span style="font-size: 42px;">
+      <b></b>
+    </span>
+    <i><sub>•By Silent Wolf •</sub></i>
+  </h1>
+</div>
 
-⚡🐺<br>
-
-<span style="font-size: 42px;">
-  <b>🅆🄾🄻🄵 ⓑⓞⓣ</b>
-</span><br>
-
-<i><sub>by Silent Wolf •</sub></i>
-
-</h1>
-
-<p align="center"><i>“Silence kills. So does this bot.”</i></p>
-
-<p align="center">
-  <b>Spawned by <code>Silent Wolf</code>, refined in digital darkness — blessed by Meiser’s shadow 🖤👁️‍🗨️</b>
+<p align="center" style="color: #00ff00; text-shadow: 0 0 5px #00ff00;">
+  <i>"Trust a woman at your won risk"</i>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Node.js-🟢_v18+-black?style=for-the-badge&logo=node.js" />
-  <img src="https://img.shields.io/badge/Discord.js-💜_v14-black?style=for-the-badge&logo=discord" />
-  <img src="https://img.shields.io/badge/MEISER_Enhanced-🔮_Aura-black?style=for-the-badge&logo=powerbi" />
-  <img src="https://img.shields.io/badge/Rage%20Fueled-🔥_No_Mercy-black?style=for-the-badge" />
-</p>
 
----
+<div align="center">    
+<strong> DEPLOY WOLFBOT </strong>
+    <br>
+  <a href="https://auth-ivory-delta.vercel.app/">
+    <img src="https://img.shields.io/badge/Deploy%20WOLFBOT-100000?style=for-the-badge&logo=scan&logoColor=white&labelColor=darkblue&color=darkgreen" alt="FORK REPO"/>
+  </a>
+</div>
 
-## ⚔️ Quick Links
-
-<p align="center">
+<br>
+<div align="center">
+<strong> SESSION PAIR </strong>
+    <br>
   <a href="https://wolfbot-pair-1.onrender.com/" target="_blank">
-    <img src="https://img.shields.io/badge/PAIR_NOW-Click_Here-00ff00?style=for-the-badge&logo=vercel&logoColor=white" alt="Pair Now" />
+    <img src="https://img.shields.io/badge/pair %20code 1-100000?style=for-the-badge&logo=scan&logoColor=white&labelColor=darkblue&color=darkgreen" alt="PAIR"/>
   </a>
+</div>
+<br>
+<p align="center">  
+<strong> DOWNLOAD ZIP </strong>
+    <br>
+    <a href="https://github.com/777Wolf-dot/Silent-Wolf--Bot.git" target="_blank">
+        <img alt="Download zip" src="https://img.shields.io/badge/DOWNLOAD%20 ZIP-100000?style=for-the-badge&logo=scan&logoColor=white&labelColor=darkorange&color=darkgreen"/>
+    </a>
 </p>
-
----
-
-## 🚀 Deploy WolfBot Instantly
-
-<p align="center">
-
-<a href="https://heroku.com/deploy?template=https://github.com/777Wolf-dot/Silent-Wolf--Bot" target="_blank">
-  <img src="https://img.shields.io/badge/Deploy_to_Heroku-7056bf?style=for-the-badge&logo=heroku&logoColor=white" alt="Deploy to Heroku">
-</a>
+<br>
 
 
-<a href="https://replit.com/new/nodejs" target="_blank">
-  <img src="https://img.shields.io/badge/Deploy_to_Replit-0d101e?style=for-the-badge&logo=replit&logoColor=white" alt="Deploy to Replit">
-</a>
+<div align="center"> 
+  <a href="https://git.io/typing-svg"> 
+    <img src="https://readme-typing-svg.demolab.com?font=Orbitron&size=50&pause=1000&color=33ff00&center=true&width=910&height=100&lines=WOLFBOT;Forged+in+Darkness;Powered+by+Silence;Enhanced+by+Wolf+Spirit" alt="Typing SVG" />
+  </a> 
+</div>   
 
 
-  <a href="https://katabump.com" target="_blank">
-    <img src="https://img.shields.io/badge/Deploy_to_Katabump-ff0055?style=for-the-badge&logo=render&logoColor=white" alt="Deploy to Katabump">
-  </a>
-
-  <a href="https://abyssnode.tech" target="_blank">
-    <img src="https://img.shields.io/badge/Deploy_to_AbyssNode-00ffcc?style=for-the-badge&logo=cloudflare&logoColor=black" alt="Deploy to AbyssNode">
-  </a>
-
-</p>
 
 
