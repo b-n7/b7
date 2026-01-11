@@ -255,7 +255,7 @@ const __dirname = dirname(__filename);
 // ====== CONFIGURATION ======
 const SESSION_DIR = './session';
 const BOT_NAME = process.env.BOT_NAME || 'WOLFBOT';
-const VERSION = '1.1.1'; // Updated version for SESSION ID support
+const VERSION = '1.1.2'; // Updated version for SESSION ID support
 const DEFAULT_PREFIX = process.env.PREFIX || '.';
 const OWNER_FILE = './owner.json';
 const PREFIX_CONFIG_FILE = './prefix_config.json';
