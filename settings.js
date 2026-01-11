@@ -16,7 +16,7 @@
 
 // settings.js - WolfBot Configuration
 export default {
-  // ====== UPDATE CONFIGURATION ======
+  // ===== UPDATE CONFIGURATION =====
   update: {
     autoCheck: false, // Check for updates on startup (set to false for manual)
     checkInterval: 6, // Check every 6 hours (if autoCheck is true)
