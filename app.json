@@ -1,28 +1,33 @@
 {
-  "name": "WolfBot",
-  "description": "A powerful Baileys WhatsApp bot with wolf-themed features.",
-  "repository": "https://github.com/777Wolf-dot/Silent-Wolf--Bot",
-  "logo": "https://i.ibb.co/HDCwvyhT/wolfbot.jpg",
-  "keywords": ["whatsapp", "bot", "baileys", "wolf", "nodejs"],
-
+  "name": "Silent Wolf Bot",
+  "description": "Powerful WhatsApp Bot - Just add your session ID or phone number",
+  "repository": "https://github.com/777Wolf-dot/Silent-Wolf--Bot.git",
+  "logo": "https://raw.githubusercontent.com/777Wolf-dot/Silent-Wolf--Bot/main/wolf.png",
+  "keywords": ["whatsapp", "bot", "wolf", "automation"],
   "env": {
-    "OWNER_NUMBER": {
-      "description": "Enter your WhatsApp number in international format (e.g. 2547xxxxxxx)",
-      "required": true
-    },
-   
     "SESSION_ID": {
-      "description": "Paste your generated Session ID here (optional)",
+      "description": "Paste your WOLF-BOT session ID here (Get from session generator)",
+      "required": false
+    },
+    "PHONE_NUMBER": {
+      "description": "OR enter your phone number (with country code, no +) for pairing code login",
+      "required": false
+    },
+    "PREFIX": {
+      "description": "Bot command prefix (default: .)",
+      "value": ".",
       "required": false
     }
-   
-      },
-    
-    
-    
-  
-
+  },
   "buildpacks": [
-    { "url": "heroku/nodejs" }
-  ]
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "free"
+    }
+  }
 }

@@ -1,4 +1,15 @@
-// File: ./commands/utility/antidelete.js - UPDATED WITH JSON STORAGE & AUTO-CLEAN
+
+
+
+
+
+
+
+
+
+
+
+// File: ./commands/utility/antidelete.js - FIXED PRIVATE MODE
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -10,7 +21,7 @@ const __dirname = path.dirname(__filename);
 // Storage paths
 const STORAGE_DIR = './data/antidelete';
 const MEDIA_DIR = path.join(STORAGE_DIR, 'media');
-const CACHE_FILE = path.join(STORAGE_DIR, 'antidelete.json'); // CHANGED: Renamed to antidelete.json
+const CACHE_FILE = path.join(STORAGE_DIR, 'antidelete.json');
 const SETTINGS_FILE = path.join(STORAGE_DIR, 'settings.json');
 
 // Cache cleaning settings
@@ -41,7 +52,7 @@ let antideleteState = {
         maxStorageMB: 500,
         showPhoneNumbers: true,
         ownerOnly: true,
-        autoCleanRetrieved: true, // NEW: Auto-clean retrieved messages
+        autoCleanRetrieved: true,
         initialized: false
     },
     cleanupInterval: null
@@ -541,7 +552,7 @@ async function storeIncomingMessage(message) {
         antideleteState.messageCache.set(msgId, messageData);
         antideleteState.stats.totalMessages++;
         
-        console.log(`📱 Antidelete: Stored message from ${pushName} (${type})`);
+        //console.log(`📱 Antidelete: Stored message from ${pushName} (${type})`);
         
         // Download media if present (with delay to prevent memory spikes)
         if (hasMedia && mediaInfo) {
@@ -570,7 +581,7 @@ async function storeIncomingMessage(message) {
     }
 }
 
-// Handle deleted message (with auto-clean from JSON)
+// Handle deleted message (with auto-clean from JSON) - FIXED PRIVATE MODE
 async function handleDeletedMessage(update) {
     try {
         if (!antideleteState.sock || antideleteState.mode === 'off') return;
@@ -604,9 +615,11 @@ async function handleDeletedMessage(update) {
         antideleteState.messageCache.delete(msgId);
         antideleteState.stats.deletedDetected++;
         
-        // Send based on mode
         let sent = false;
+        
+        // FIXED: Send based on mode - PRIVATE mode sends to owner DM ONLY
         if (antideleteState.mode === 'private') {
+            // PRIVATE MODE: Send ONLY to owner DM
             sent = await sendToOwnerDM(cachedMessage);
             if (sent) {
                 antideleteState.stats.sentToDm++;
@@ -615,6 +628,7 @@ async function handleDeletedMessage(update) {
                 await cleanRetrievedMessage(msgId);
             }
         } else if (antideleteState.mode === 'public') {
+            // PUBLIC MODE: Send to the chat where it was deleted
             sent = await sendToChat(cachedMessage, chatJid);
             if (sent) {
                 antideleteState.stats.sentToChat++;
@@ -628,7 +642,7 @@ async function handleDeletedMessage(update) {
             antideleteState.stats.retrieved++;
             // Save to JSON (without the retrieved message)
             await saveData();
-            console.log(`✅ Antidelete: Retrieved deleted message from ${cachedMessage.pushName}`);
+            console.log(`✅ Antidelete: Retrieved deleted message from ${cachedMessage.pushName} (Mode: ${antideleteState.mode})`);
         }
         
     } catch (error) {
@@ -666,7 +680,7 @@ async function sendToOwnerDM(messageData) {
         }
         
         detailsText += `\n\n────────────\n`;
-        detailsText += `🔍 *Captured by Antidelete*`;
+        detailsText += `🔍 *Captured by Antidelete (Private Mode)*`;
         
         // Check if we have media
         const mediaCache = antideleteState.mediaCache.get(messageData.id);
@@ -758,7 +772,7 @@ async function sendToChat(messageData, chatJid) {
         }
         
         detailsText += `\n\n────────────\n`;
-        detailsText += `🔍 *Retrieved by Antidelete*`;
+        detailsText += `🔍 *Retrieved by Antidelete (Public Mode)*`;
         
         // Check if we have media
         const mediaCache = antideleteState.mediaCache.get(messageData.id);
@@ -820,7 +834,7 @@ async function sendToChat(messageData, chatJid) {
             await antideleteState.sock.sendMessage(chatJid, { text: detailsText });
         }
         
-        console.log(`📤 Antidelete: Sent to chat ${chatJid}`);
+        console.log(`📤 Antidelete: Sent to chat ${chatJid} (Public Mode)`);
         return true;
         
     } catch (error) {
@@ -866,7 +880,7 @@ function setupListeners(sock) {
         }
     });
     
-    console.log('✅ Antidelete: Listeners active');
+    console.log(`✅ Antidelete: Listeners active (Mode: ${antideleteState.mode})`);
 }
 
 // Initialize system
@@ -895,15 +909,15 @@ async function initializeSystem(sock) {
         antideleteState.settings.initialized = true;
         await saveData();
         
-        console.log(`🎯 Antidelete: System initialized`);
-        console.log(`   Mode: ${antideleteState.mode.toUpperCase()} (Default: Private)`);
-        console.log(`   Status: ${antideleteState.mode === 'off' ? '❌ INACTIVE' : '✅ ACTIVE'}`);
-        console.log(`   Owner Only: ${antideleteState.settings.ownerOnly ? '✅' : '❌'}`);
-        console.log(`   Auto-clean: ${antideleteState.settings.autoCleanEnabled ? '✅ ENABLED' : '❌ DISABLED'}`);
-        console.log(`   Clean Retrieved: ${antideleteState.settings.autoCleanRetrieved ? '✅ ENABLED' : '❌ DISABLED'}`);
-        console.log(`   Cached: ${antideleteState.messageCache.size} messages`);
-        console.log(`   Storage: ${antideleteState.stats.totalStorageMB}MB`);
-        console.log(`   Show Numbers: ${antideleteState.settings.showPhoneNumbers ? '✅' : '❌'}`);
+        // console.log(`🎯 Antidelete: System initialized`);
+        // console.log(`   Mode: ${antideleteState.mode.toUpperCase()} (Default: Private)`);
+        // console.log(`   Status: ${antideleteState.mode === 'off' ? '❌ INACTIVE' : '✅ ACTIVE'}`);
+        // console.log(`   Owner Only: ${antideleteState.settings.ownerOnly ? '✅' : '❌'}`);
+        // console.log(`   Auto-clean: ${antideleteState.settings.autoCleanEnabled ? '✅ ENABLED' : '❌ DISABLED'}`);
+        // console.log(`   Clean Retrieved: ${antideleteState.settings.autoCleanRetrieved ? '✅ ENABLED' : '❌ DISABLED'}`);
+        // console.log(`   Cached: ${antideleteState.messageCache.size} messages`);
+        // console.log(`   Storage: ${antideleteState.stats.totalStorageMB}MB`);
+        // console.log(`   Show Numbers: ${antideleteState.settings.showPhoneNumbers ? '✅' : '❌'}`);
         
     } catch (error) {
         console.error('❌ Antidelete: Initialization error:', error.message);
@@ -915,7 +929,7 @@ export async function initAntidelete(sock) {
     await initializeSystem(sock);
 }
 
-// The command module - UPDATED TO OWNER-ONLY WITH JSON STORAGE
+// The command module - FIXED PRIVATE MODE LOGIC
 export default {
     name: 'antidelete',
     alias: ['undelete', 'antidel', 'ad'],
@@ -959,7 +973,7 @@ export default {
                 setupListeners(sock);
                 await saveData();
                 await sock.sendMessage(chatId, {
-                    text: `✅ *ANTIDELETE: PUBLIC MODE*\n\nDeleted messages will be shown in the chat where they were deleted.\n\nCurrent status: ✅ ACTIVE\nStorage: ${antideleteState.stats.totalStorageMB}MB\nData Storage: JSON Format`
+                    text: `✅ *ANTIDELETE: PUBLIC MODE*\n\nDeleted messages will be shown in the chat where they were deleted.\n\nCurrent status: ✅ ACTIVE\nStorage: ${antideleteState.stats.totalStorageMB}MB\nData Storage: JSON Format\n\n⚠️ *Note:* In public mode, deleted messages will be shown in the original chat.`
                 }, { quoted: msg });
                 break;
                 
@@ -970,7 +984,7 @@ export default {
                 setupListeners(sock);
                 await saveData();
                 await sock.sendMessage(chatId, {
-                    text: `✅ *ANTIDELETE: PRIVATE MODE*\n\nDeleted messages will be sent to your DM only.\n\nCurrent status: ✅ ACTIVE\nStorage: ${antideleteState.stats.totalStorageMB}MB\nData Storage: JSON Format\nAuto-clean: ${antideleteState.settings.autoCleanRetrieved ? '✅ ENABLED' : '❌ DISABLED'}`
+                    text: `✅ *ANTIDELETE: PRIVATE MODE*\n\nDeleted messages will be sent to your DM ONLY.\n\nCurrent status: ✅ ACTIVE\nStorage: ${antideleteState.stats.totalStorageMB}MB\nData Storage: JSON Format\nAuto-clean: ${antideleteState.settings.autoCleanRetrieved ? '✅ ENABLED' : '❌ DISABLED'}\n\n📱 *Private Mode:* Deleted messages will be sent to your WhatsApp (message yourself).`
                 }, { quoted: msg });
                 break;
                 
@@ -987,10 +1001,13 @@ export default {
             case 'status':
             case 'stats':
                 const statsText = `
+📊 *ANTIDELETE STATUS*
+
 💡 *Usage:*
-• \`${prefix}antidelete private\`
-• \`${prefix}antidelete public\`
-• \`${prefix}antidelete off\`
+• \`${prefix}antidelete private\` - Send to DM only
+• \`${prefix}antidelete public\` - Show in chat
+• \`${prefix}antidelete off\` - Disable
+• \`${prefix}antidelete settings\` - Configure
 `;
                 
                 await sock.sendMessage(chatId, { text: statsText }, { quoted: msg });
@@ -1183,26 +1200,28 @@ Optimized for memory usage with JSON storage
 • Raw WhatsApp number display
 
 🔐 *Mode:*
-• **PRIVATE** - Deleted messages go to your DM only (DEFAULT)
-• **PUBLIC** - Deleted messages shown in the chat
+• **PRIVATE** - Deleted messages go to your DM ONLY (message yourself)
+• **PUBLIC** - Deleted messages shown in the original chat
 • **OFF** - System disabled
 
 ⚙️ *Commands (Owner Only):*
-• \`${prefix}antidelete private\` - Enable PRIVATE mode
-• \`${prefix}antidelete public\` - Enable PUBLIC mode
+• \`${prefix}antidelete private\` - Enable PRIVATE mode (DM only)
+• \`${prefix}antidelete public\` - Enable PUBLIC mode (in chat)
 • \`${prefix}antidelete off\` - Disable system
 • \`${prefix}antidelete stats\` - View statistics
-• \`${prefix}antidelete test\` - Send test message
 • \`${prefix}antidelete clear\` - Clear all data
 • \`${prefix}antidelete settings\` - Configure settings
 • \`${prefix}antidelete help\` - This menu
 
-📱 *Memory Optimization:*
-✅ JSON storage format
-✅ Media files stored on disk only
-✅ Auto-clean retrieved messages
-✅ Buffer cleanup after sending
-✅ Delayed media downloads
+📱 *Private Mode:*
+✅ Messages sent to your WhatsApp (message yourself)
+✅ Only you can see deleted messages
+✅ Best for privacy and monitoring
+
+📢 *Public Mode:*
+✅ Messages shown in the chat where deleted
+✅ Everyone can see retrieved messages
+✅ Use with caution in sensitive groups
 
 ⚙️ *Settings Commands:*
 • \`${prefix}antidelete settings autoclean on/off\`

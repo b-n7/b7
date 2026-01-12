@@ -1,11 +1,12 @@
 // ====== SILENT WOLFBOT - ULTIMATE CLEAN EDITION (SPEED OPTIMIZED) ======
 // Features: Real-time prefix changes, UltimateFix, Status Detection, Auto-Connect
 // SUPER CLEAN TERMINAL - Zero spam, Zero session noise, Rate limit protection
-// Date: 2024 | Version: 1.1.1 (SESSION ID SUPPORT)
+// Date: 2024 | Version: 1.1.3 (PREFIXLESS & NEW MEMBER DETECTION)
 // New: Session ID authentication from process.env.SESSION_ID
 // New: WOLF-BOT session format support (WOLF-BOT:eyJ...)
-// New: Background authentication processes
 // New: Professional success messaging like WOLFBOT
+// New: Prefixless mode support
+// New: Group new member detection with terminal notifications
 
 // ====== PERFORMANCE OPTIMIZATIONS APPLIED ======
 // 1. Reduced mandatory delays from 1000ms to 100ms
@@ -135,7 +136,9 @@ const shouldShowLog = (args) => {
     if (lowerMsg.includes('defibrillator') || 
         lowerMsg.includes('command') || 
         lowerMsg.includes('✅') || 
-        lowerMsg.includes('❌')) {
+        lowerMsg.includes('❌') ||
+        lowerMsg.includes('👥') ||
+        lowerMsg.includes('👤')) {
         return true;
     }
     
@@ -234,9 +237,6 @@ import path from 'path';
 import dotenv from 'dotenv';
 import chalk from 'chalk';
 import readline from 'readline';
-//import { File } from 'megajs';
-//import mega from 'megajs';
-
 
 // Import automation handlers
 import { handleAutoReact } from './commands/automation/autoreactstatus.js';
@@ -244,7 +244,6 @@ import { handleAutoView } from './commands/automation/autoviewstatus.js';
 import { initializeAutoJoin } from './commands/group/add.js';
 import antidemote from './commands/group/antidemote.js';
 import banCommand from './commands/group/ban.js';
-// Add to your commands list
 
 // ====== ENVIRONMENT SETUP ======
 dotenv.config({ path: './.env' });
@@ -255,7 +254,7 @@ const __dirname = dirname(__filename);
 // ====== CONFIGURATION ======
 const SESSION_DIR = './session';
 const BOT_NAME = process.env.BOT_NAME || 'WOLFBOT';
-const VERSION = '1.1.2'; // Updated version for SESSION ID support
+const VERSION = '1.1.3'; // Updated version for prefixless & new member detection
 const DEFAULT_PREFIX = process.env.PREFIX || '.';
 const OWNER_FILE = './owner.json';
 const PREFIX_CONFIG_FILE = './prefix_config.json';
@@ -263,6 +262,7 @@ const BOT_SETTINGS_FILE = './bot_settings.json';
 const BOT_MODE_FILE = './bot_mode.json';
 const WHITELIST_FILE = './whitelist.json';
 const BLOCKED_USERS_FILE = './blocked_users.json';
+const WELCOME_DATA_FILE = './data/welcome_data.json';
 
 // Auto-connect features
 const AUTO_CONNECT_ON_LINK = true;
@@ -415,6 +415,16 @@ class UltraCleanLogger {
         const timestamp = chalk.red(`[${new Date().toLocaleTimeString()}]`);
         originalConsoleMethods.error(timestamp, chalk.red('🚨'), ...args);
     }
+    
+    static group(...args) {
+        const timestamp = chalk.magenta(`[${new Date().toLocaleTimeString()}]`);
+        originalConsoleMethods.log(timestamp, chalk.magenta('👥'), ...args);
+    }
+    
+    static member(...args) {
+        const timestamp = chalk.cyan(`[${new Date().toLocaleTimeString()}]`);
+        originalConsoleMethods.log(timestamp, chalk.cyan('👤'), ...args);
+    }
 }
 
 // Replace console methods
@@ -431,6 +441,8 @@ global.logInfo = UltraCleanLogger.info;
 global.logWarning = UltraCleanLogger.warning;
 global.logEvent = UltraCleanLogger.event;
 global.logCommand = UltraCleanLogger.command;
+global.logGroup = UltraCleanLogger.group;
+global.logMember = UltraCleanLogger.member;
 
 // ====== ULTRA SILENT BAILEYS LOGGER ======
 const ultraSilentLogger = {
@@ -553,35 +565,42 @@ class RateLimitProtection {
 
 const rateLimiter = new RateLimitProtection();
 
-// ====== DYNAMIC PREFIX SYSTEM ======
+// ====== DYNAMIC PREFIX SYSTEM WITH PREFIXLESS SUPPORT ======
 let prefixCache = DEFAULT_PREFIX;
 let prefixHistory = [];
+let isPrefixless = false;
 
 function getCurrentPrefix() {
-    return prefixCache;
+    return isPrefixless ? '' : prefixCache;
 }
 
 function savePrefixToFile(newPrefix) {
     try {
+        const isNone = newPrefix === 'none' || newPrefix === '""' || newPrefix === "''" || newPrefix === '';
+        
         const config = {
-            prefix: newPrefix,
+            prefix: isNone ? '' : newPrefix,
+            isPrefixless: isNone,
             setAt: new Date().toISOString(),
             timestamp: Date.now(),
             version: VERSION,
-            previousPrefix: prefixCache
+            previousPrefix: prefixCache,
+            previousIsPrefixless: isPrefixless
         };
         fs.writeFileSync(PREFIX_CONFIG_FILE, JSON.stringify(config, null, 2));
         
         const settings = {
-            prefix: newPrefix,
+            prefix: isNone ? '' : newPrefix,
+            isPrefixless: isNone,
             prefixSetAt: new Date().toISOString(),
             prefixChangedAt: Date.now(),
             previousPrefix: prefixCache,
+            previousIsPrefixless: isPrefixless,
             version: VERSION
         };
         fs.writeFileSync(BOT_SETTINGS_FILE, JSON.stringify(settings, null, 2));
         
-        UltraCleanLogger.info(`Prefix saved to files: "${newPrefix}"`);
+        UltraCleanLogger.info(`Prefix settings saved: "${newPrefix}", prefixless: ${isNone}`);
         return true;
     } catch (error) {
         UltraCleanLogger.error(`Error saving prefix: ${error.message}`);
@@ -593,20 +612,34 @@ function loadPrefixFromFiles() {
     try {
         if (fs.existsSync(PREFIX_CONFIG_FILE)) {
             const config = JSON.parse(fs.readFileSync(PREFIX_CONFIG_FILE, 'utf8'));
-            if (config.prefix && config.prefix.trim() !== '') {
-                return config.prefix.trim();
+            
+            if (config.isPrefixless !== undefined) {
+                isPrefixless = config.isPrefixless;
+            }
+            
+            if (config.prefix !== undefined) {
+                if (config.prefix.trim() === '' && config.isPrefixless) {
+                    return '';
+                } else if (config.prefix.trim() !== '') {
+                    return config.prefix.trim();
+                }
             }
         }
         
         if (fs.existsSync(BOT_SETTINGS_FILE)) {
             const settings = JSON.parse(fs.readFileSync(BOT_SETTINGS_FILE, 'utf8'));
+            
+            if (settings.isPrefixless !== undefined) {
+                isPrefixless = settings.isPrefixless;
+            }
+            
             if (settings.prefix && settings.prefix.trim() !== '') {
                 return settings.prefix.trim();
             }
         }
         
     } catch (error) {
-        // Silent fail
+        UltraCleanLogger.warning(`Error loading prefix: ${error.message}`);
     }
     
     return DEFAULT_PREFIX;
@@ -614,38 +647,55 @@ function loadPrefixFromFiles() {
 
 function updatePrefixImmediately(newPrefix) {
     const oldPrefix = prefixCache;
+    const oldIsPrefixless = isPrefixless;
     
-    if (!newPrefix || newPrefix.trim() === '') {
-        UltraCleanLogger.error('Cannot set empty prefix');
-        return { success: false, error: 'Empty prefix' };
+    const isNone = newPrefix === 'none' || newPrefix === '""' || newPrefix === "''" || newPrefix === '';
+    
+    if (isNone) {
+        // Enable prefixless mode
+        isPrefixless = true;
+        prefixCache = '';
+        
+        UltraCleanLogger.success(`Prefixless mode enabled`);
+    } else {
+        if (!newPrefix || newPrefix.trim() === '') {
+            UltraCleanLogger.error('Cannot set empty prefix');
+            return { success: false, error: 'Empty prefix' };
+        }
+        
+        if (newPrefix.length > 5) {
+            UltraCleanLogger.error('Prefix too long (max 5 characters)');
+            return { success: false, error: 'Prefix too long' };
+        }
+        
+        const trimmedPrefix = newPrefix.trim();
+        
+        // Update memory cache
+        prefixCache = trimmedPrefix;
+        isPrefixless = false;
+        
+        UltraCleanLogger.info(`Prefix changed to: "${trimmedPrefix}"`);
     }
-    
-    if (newPrefix.length > 5) {
-        UltraCleanLogger.error('Prefix too long (max 5 characters)');
-        return { success: false, error: 'Prefix too long' };
-    }
-    
-    const trimmedPrefix = newPrefix.trim();
-    
-    // Update memory cache
-    prefixCache = trimmedPrefix;
     
     // Update global variables
     if (typeof global !== 'undefined') {
-        global.prefix = trimmedPrefix;
-        global.CURRENT_PREFIX = trimmedPrefix;
+        global.prefix = getCurrentPrefix();
+        global.CURRENT_PREFIX = getCurrentPrefix();
+        global.isPrefixless = isPrefixless;
     }
     
     // Update environment
-    process.env.PREFIX = trimmedPrefix;
+    process.env.PREFIX = getCurrentPrefix();
     
     // Save to files
-    savePrefixToFile(trimmedPrefix);
+    savePrefixToFile(newPrefix);
     
     // Add to history
     prefixHistory.push({
-        oldPrefix,
-        newPrefix: trimmedPrefix,
+        oldPrefix: oldIsPrefixless ? 'none' : oldPrefix,
+        newPrefix: isPrefixless ? 'none' : prefixCache,
+        isPrefixless: isPrefixless,
+        oldIsPrefixless: oldIsPrefixless,
         timestamp: new Date().toISOString(),
         time: Date.now()
     });
@@ -658,26 +708,30 @@ function updatePrefixImmediately(newPrefix) {
     // Update terminal header
     updateTerminalHeader();
     
-    UltraCleanLogger.success(`Prefix changed: "${oldPrefix}" → "${trimmedPrefix}"`);
+    UltraCleanLogger.success(`Prefix updated: "${oldIsPrefixless ? 'none' : oldPrefix}" → "${isPrefixless ? 'none (prefixless)' : prefixCache}"`);
     
     return {
         success: true,
-        oldPrefix,
-        newPrefix: trimmedPrefix,
+        oldPrefix: oldIsPrefixless ? 'none' : oldPrefix,
+        newPrefix: isPrefixless ? 'none' : prefixCache,
+        isPrefixless: isPrefixless,
         timestamp: new Date().toISOString()
     };
 }
 
 function updateTerminalHeader() {
     const currentPrefix = getCurrentPrefix();
+    const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
+    
     console.clear();
     console.log(chalk.cyan(`
 ╔══════════════════════════════════════════════════════════════════════╗
-║   🐺 ${chalk.bold(`${BOT_NAME.toUpperCase()} v${VERSION} (SESSION ID SUPPORT)`)}             
-║   💬 Prefix  : "${currentPrefix}"
+║   🐺 ${chalk.bold(`${BOT_NAME.toUpperCase()} v${VERSION} (PREFIXLESS & MEMBER DETECTION)`)}             
+║   💬 Prefix  : ${prefixDisplay}
 ║   🔧 Auto Fix: ✅ ENABLED
 ║   🔄 Real-time Prefix: ✅ ENABLED
 ║   👁️ Status Detector: ✅ ACTIVE
+║   👥 Member Detector: ✅ ACTIVE
 ║   🛡️ Rate Limit Protection: ✅ ACTIVE
 ║   🔗 Auto-Connect on Link: ${AUTO_CONNECT_ON_LINK ? '✅' : '❌'}
 ║   🔄 Auto-Connect on Start: ${AUTO_CONNECT_ON_START ? '✅' : '❌'}
@@ -688,12 +742,14 @@ function updateTerminalHeader() {
 ║   🔊 Console: ✅ COMPLETELY FILTERED
 ║   ⚡ SPEED: ✅ OPTIMIZED (FAST RESPONSE)
 ║   🎯 Background Auth: ✅ ENABLED
+║   🎉 Welcome System: ✅ ENABLED
 ╚══════════════════════════════════════════════════════════════════════╝
 `));
 }
 
 // Initialize with loaded prefix
 prefixCache = loadPrefixFromFiles();
+isPrefixless = prefixCache === '' ? true : false;
 updateTerminalHeader();
 
 // ====== PLATFORM DETECTION ======
@@ -942,6 +998,268 @@ class JidManager {
 }
 
 const jidManager = new JidManager();
+
+// ====== NEW MEMBER DETECTION SYSTEM ======
+class NewMemberDetector {
+    constructor() {
+        this.enabled = true;
+        this.detectedMembers = new Map(); // groupId -> array of member events
+        this.groupMembersCache = new Map(); // groupId -> Set of member IDs
+        this.loadDetectionData();
+        
+        UltraCleanLogger.success('New Member Detector initialized');
+    }
+    
+    loadDetectionData() {
+        try {
+            if (fs.existsSync('./data/member_detection.json')) {
+                const data = JSON.parse(fs.readFileSync('./data/member_detection.json', 'utf8'));
+                if (data.detectedMembers) {
+                    for (const [groupId, members] of Object.entries(data.detectedMembers)) {
+                        this.detectedMembers.set(groupId, members);
+                    }
+                }
+                UltraCleanLogger.info(`📊 Loaded ${this.detectedMembers.size} groups member data`);
+            }
+        } catch (error) {
+            UltraCleanLogger.warning(`Could not load member detection data: ${error.message}`);
+        }
+    }
+    
+    saveDetectionData() {
+        try {
+            const data = {
+                detectedMembers: {},
+                updatedAt: new Date().toISOString(),
+                totalGroups: this.detectedMembers.size
+            };
+            
+            for (const [groupId, members] of this.detectedMembers.entries()) {
+                data.detectedMembers[groupId] = members;
+            }
+            
+            // Ensure data directory exists
+            if (!fs.existsSync('./data')) {
+                fs.mkdirSync('./data', { recursive: true });
+            }
+            
+            fs.writeFileSync('./data/member_detection.json', JSON.stringify(data, null, 2));
+        } catch (error) {
+            UltraCleanLogger.warning(`Could not save member detection data: ${error.message}`);
+        }
+    }
+    
+    async detectNewMembers(sock, groupUpdate) {
+        try {
+            if (!this.enabled) return null;
+            
+            const groupId = groupUpdate.id;
+            const action = groupUpdate.action;
+            
+            if (action === 'add' || action === 'invite') {
+                const participants = groupUpdate.participants || [];
+                
+                // Get group metadata
+                const metadata = await sock.groupMetadata(groupId);
+                const groupName = metadata.subject || 'Unknown Group';
+                
+                // Get current cached members
+                let cachedMembers = this.groupMembersCache.get(groupId) || new Set();
+                
+                // Identify new members
+                const newMembers = [];
+                for (const participant of participants) {
+                    const userJid = participant;
+                    
+                    if (!cachedMembers.has(userJid)) {
+                        // New member detected
+                        try {
+                            const userInfo = await sock.onWhatsApp(userJid);
+                            const userName = userInfo[0]?.name || userJid.split('@')[0];
+                            const userNumber = userJid.split('@')[0];
+                            
+                            newMembers.push({
+                                jid: userJid,
+                                name: userName,
+                                number: userNumber,
+                                addedAt: new Date().toISOString(),
+                                timestamp: Date.now(),
+                                action: action,
+                                addedBy: groupUpdate.actor || 'unknown'
+                            });
+                            
+                            cachedMembers.add(userJid);
+                            
+                            // Show terminal notification
+                            this.showMemberNotification(groupName, userName, userNumber, action);
+                            
+                        } catch (error) {
+                            UltraCleanLogger.warning(`Could not get user info for ${userJid}: ${error.message}`);
+                        }
+                    }
+                }
+                
+                // Update cache
+                this.groupMembersCache.set(groupId, cachedMembers);
+                
+                // Save new members to history
+                if (newMembers.length > 0) {
+                    const groupEvents = this.detectedMembers.get(groupId) || [];
+                    groupEvents.push(...newMembers);
+                    this.detectedMembers.set(groupId, groupEvents.slice(-50)); // Keep last 50 events
+                    
+                    // Auto-save periodically
+                    if (Math.random() < 0.2) { // 20% chance to save on each detection
+                        this.saveDetectionData();
+                    }
+                    
+                    // Check if welcome system is enabled for this group
+                    await this.checkWelcomeSystem(sock, groupId, newMembers);
+                    
+                    return newMembers;
+                }
+            }
+            
+            return null;
+            
+        } catch (error) {
+            UltraCleanLogger.error(`Member detection error: ${error.message}`);
+            return null;
+        }
+    }
+    
+    showMemberNotification(groupName, userName, userNumber, action) {
+        const actionEmoji = action === 'add' ? '➕' : '📨';
+        const actionText = action === 'add' ? 'ADDED' : 'INVITED';
+        
+        logMember(`${actionEmoji} ${actionText}: ${userName} (+${userNumber})`);
+        logGroup(`👥 Group: ${groupName}`);
+    }
+    
+    async checkWelcomeSystem(sock, groupId, newMembers) {
+        try {
+            // Load welcome data
+            const welcomeData = this.loadWelcomeData();
+            const groupWelcome = welcomeData.groups?.[groupId];
+            
+            if (groupWelcome?.enabled) {
+                for (const member of newMembers) {
+                    await this.sendWelcomeMessage(sock, groupId, member.jid, groupWelcome.message);
+                }
+            }
+        } catch (error) {
+            UltraCleanLogger.warning(`Welcome system check failed: ${error.message}`);
+        }
+    }
+    
+    async sendWelcomeMessage(sock, groupId, userId, message) {
+        try {
+            // Get user info
+            const userInfo = await sock.onWhatsApp(userId);
+            const userName = userInfo[0]?.name || userId.split('@')[0];
+            
+            // Get group info
+            const metadata = await sock.groupMetadata(groupId);
+            const memberCount = metadata.participants.length;
+            const groupName = metadata.subject || "Our Group";
+            
+            // Replace variables in message
+            const welcomeText = this.replaceWelcomeVariables(message, {
+                name: userName,
+                group: groupName,
+                members: memberCount,
+                mention: `@${userId.split('@')[0]}`
+            });
+            
+            // Get user's profile picture
+            let profilePic = null;
+            try {
+                profilePic = await sock.profilePictureUrl(userId, 'image');
+            } catch {
+                // Use default avatar if no profile picture
+                profilePic = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png';
+            }
+            
+            // Create welcome message with profile picture
+            await sock.sendMessage(groupId, {
+                image: { url: profilePic },
+                caption: welcomeText,
+                mentions: [userId],
+                contextInfo: {
+                    mentionedJid: [userId]
+                }
+            });
+            
+            // Update last welcome time in welcome data
+            const welcomeData = this.loadWelcomeData();
+            if (welcomeData.groups?.[groupId]) {
+                welcomeData.groups[groupId].lastWelcome = Date.now();
+                this.saveWelcomeData(welcomeData);
+            }
+            
+            UltraCleanLogger.info(`✅ Welcome sent to ${userName} in ${groupName}`);
+            
+        } catch (error) {
+            UltraCleanLogger.warning(`Could not send welcome message: ${error.message}`);
+        }
+    }
+    
+    replaceWelcomeVariables(message, variables) {
+        return message
+            .replace(/{name}/g, variables.name)
+            .replace(/{group}/g, variables.group)
+            .replace(/{members}/g, variables.members)
+            .replace(/{mention}/g, variables.mention);
+    }
+    
+    loadWelcomeData() {
+        try {
+            if (fs.existsSync(WELCOME_DATA_FILE)) {
+                return JSON.parse(fs.readFileSync(WELCOME_DATA_FILE, 'utf8'));
+            }
+        } catch (error) {
+            UltraCleanLogger.warning(`Error loading welcome data: ${error.message}`);
+        }
+        
+        return {
+            groups: {},
+            version: '1.0',
+            created: new Date().toISOString()
+        };
+    }
+    
+    saveWelcomeData(data) {
+        try {
+            // Ensure data directory exists
+            if (!fs.existsSync('./data')) {
+                fs.mkdirSync('./data', { recursive: true });
+            }
+            
+            data.updated = new Date().toISOString();
+            fs.writeFileSync(WELCOME_DATA_FILE, JSON.stringify(data, null, 2));
+            return true;
+        } catch (error) {
+            UltraCleanLogger.warning(`Error saving welcome data: ${error.message}`);
+            return false;
+        }
+    }
+    
+    getStats() {
+        let totalEvents = 0;
+        for (const events of this.detectedMembers.values()) {
+            totalEvents += events.length;
+        }
+        
+        return {
+            enabled: this.enabled,
+            totalGroups: this.detectedMembers.size,
+            totalEvents: totalEvents,
+            cachedGroups: this.groupMembersCache.size
+        };
+    }
+}
+
+const memberDetector = new NewMemberDetector();
 
 // ====== AUTO GROUP JOIN SYSTEM ======
 class AutoGroupJoinSystem {
@@ -1447,6 +1765,7 @@ class AutoLinkSystem {
         try {
             const currentTime = new Date().toLocaleTimeString();
             const currentPrefix = getCurrentPrefix();
+            const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
             
             let successMsg = `✅ *${BOT_NAME.toUpperCase()} v${VERSION} CONNECTED!*\n\n`;
             
@@ -1460,13 +1779,14 @@ class AutoLinkSystem {
             successMsg += `├─ Your Number: +${cleaned.cleanNumber}\n`;
             successMsg += `├─ Device Type: ${cleaned.isLid ? 'Linked Device 🔗' : 'Regular Device 📱'}\n`;
             successMsg += `├─ JID: ${cleaned.cleanJid}\n`;
-            successMsg += `├─ Prefix: "${currentPrefix}"\n`;
+            successMsg += `├─ Prefix: ${prefixDisplay}\n`;
             successMsg += `├─ Mode: ${BOT_MODE}\n`;
             successMsg += `└─ Status: ✅ LINKED SUCCESSFULLY\n\n`;
             
             successMsg += `⚡ *Background Processes:*\n`;
             successMsg += `├─ Ultimate Fix: Initializing...\n`;
             successMsg += `├─ Auto-Join: ${AUTO_JOIN_ENABLED ? 'Initializing...' : 'Disabled'}\n`;
+            successMsg += `├─ Member Detection: ✅ ACTIVE\n`;
             successMsg += `└─ All systems: ✅ ACTIVE\n\n`;
             
             if (!isFirstUser) {
@@ -1608,6 +1928,9 @@ class ProfessionalDefibrillator {
             const cpm = this.calculateCPM();
             const heartbeatDisplay = this.getHeartbeatVisual(this.heartbeatCount);
             
+            // Get member detection stats
+            const memberStats = memberDetector ? memberDetector.getStats() : null;
+            
             console.log(chalk.greenBright(`
 ╔═══════════════════════════════════════════╗
 ║                    🩺 DEFIBRILLATOR HEARTBEAT   ║
@@ -1617,9 +1940,10 @@ class ProfessionalDefibrillator {
 ║  💾 Memory: ${memoryMB}MB | Heap: ${heapMB}MB                         
 ║  🔗 Status: ${connectionStatus}                                      
 ║  📊 Commands: ${this.commandStats.total} (${cpm}/min)                
+║  👥 Members: ${memberStats ? `${memberStats.totalEvents} events` : 'Not loaded'}
 ║  ⏱️ Last Cmd: ${this.formatTimeAgo(timeSinceLastCommand)}            
 ║  📨 Last Msg: ${this.formatTimeAgo(timeSinceLastMessage)}            
-║  💬 Prefix: "${currentPrefix}"                                       
+║  💬 Prefix: "${isPrefixless ? 'none (prefixless)' : currentPrefix}"  
 ║  🏗️ Platform: ${platform}                                            
 ║  🚀 Restarts: ${this.restartCount}                                   
 ╚════════════════════════════════════════════╝
@@ -1654,6 +1978,9 @@ class ProfessionalDefibrillator {
             const cpm = this.calculateCPM();
             const availability = this.calculateAvailability();
             
+            // Get member detection stats
+            const memberStats = memberDetector ? memberDetector.getStats() : null;
+            
             let statusEmoji = "🟢";
             let statusText = "Excellent";
             
@@ -1671,9 +1998,10 @@ class ProfessionalDefibrillator {
                                 `⏰ *Uptime:* ${hours}h ${minutes}m\n` +
                                 `💾 *Memory:* ${memoryMB}MB ${statusEmoji}\n` +
                                 `📊 *Commands:* ${this.commandStats.total}\n` +
+                                `👥 *Members Detected:* ${memberStats ? memberStats.totalEvents : 0}\n` +
                                 `⚡ *CPM:* ${cpm}/min\n` +
                                 `📈 *Availability:* ${availability}%\n` +
-                                `💬 *Prefix:* "${currentPrefix}"\n` +
+                                `💬 *Prefix:* "${isPrefixless ? 'none (prefixless)' : currentPrefix}"\n` +
                                 `🔗 *Status:* ${isConnected ? 'Connected ✅' : 'Disconnected ❌'}\n` +
                                 `🏗️ *Platform:* ${platform}\n` +
                                 `🩺 *Health:* ${statusText}\n\n` +
@@ -1702,8 +2030,9 @@ class ProfessionalDefibrillator {
                                  `📋 *System Info:*\n` +
                                  `├─ Version: ${version}\n` +
                                  `├─ Platform: ${platform}\n` +
-                                 `├─ Prefix: "${currentPrefix}"\n` +
+                                 `├─ Prefix: "${isPrefixless ? 'none (prefixless)' : currentPrefix}"\n` +
                                  `├─ Mode: ${BOT_MODE}\n` +
+                                 `├─ Member Detection: ✅ ACTIVE\n` +
                                  `└─ Status: 24/7 Ready!\n\n` +
                                  `🩺 *Defibrillator Features:*\n` +
                                  `├─ Terminal Heartbeat: Every 10s\n` +
@@ -1711,7 +2040,8 @@ class ProfessionalDefibrillator {
                                  `├─ Auto Health Checks: Every 15s\n` +
                                  `├─ Memory Monitoring: Active\n` +
                                  `├─ Auto-restart: Enabled\n` +
-                                 `└─ Command Tracking: Active\n\n` +
+                                 `├─ Command Tracking: Active\n` +
+                                 `└─ Member Detection: ✅ ACTIVE\n\n` +
                                  `🎉 *Bot is now under professional monitoring!*\n` +
                                  `_Any issues will be automatically detected and resolved._`;
             
@@ -1867,7 +2197,8 @@ class ProfessionalDefibrillator {
                                `├─ Uptime: ${Math.round(process.uptime() / 60)}m\n` +
                                `├─ Memory: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB\n` +
                                `├─ Last Activity: ${this.formatTimeAgo(Date.now() - this.lastMessageProcessed)}\n` +
-                               `└─ Commands: ${this.commandStats.total}\n\n` +
+                               `├─ Commands: ${this.commandStats.total}\n` +
+                               `└─ Member Detections: ${memberDetector ? memberDetector.getStats().totalEvents : 0}\n\n` +
                                `🩺 *Defibrillator Action:*\n` +
                                `• Health check failed\n` +
                                `• Auto-restart initiated\n` +
@@ -1914,6 +2245,7 @@ class ProfessionalDefibrillator {
                                  `├─ Uptime: ${Math.round(process.uptime() / 60)}m\n` +
                                  `├─ Total Commands: ${this.commandStats.total}\n` +
                                  `├─ Memory: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB\n` +
+                                 `├─ Member Detections: ${memberDetector ? memberDetector.getStats().totalEvents : 0}\n` +
                                  `└─ Restart count: ${this.restartCount}\n\n` +
                                  `⏳ *Bot will restart in 3 seconds...*\n` +
                                  `✅ *All features will be restored automatically*`;
@@ -2006,6 +2338,7 @@ async function handleConnectCommand(sock, msg, args, cleaned) {
         const chatJid = msg.key.remoteJid || cleaned.cleanJid;
         const start = Date.now();
         const currentPrefix = getCurrentPrefix();
+        const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
         const platform = detectPlatform();
         
         const loadingMessage = await sock.sendMessage(chatJid, {
@@ -2022,6 +2355,9 @@ async function handleConnectCommand(sock, msg, args, cleaned) {
         
         const isOwnerUser = jidManager.isOwner(msg);
         const ultimatefixStatus = isOwnerUser ? '✅' : '❌';
+        
+        // Get member detection stats
+        const memberStats = memberDetector ? memberDetector.getStats() : null;
         
         let statusEmoji, statusText, mood;
         if (latency <= 100) {
@@ -2048,11 +2384,12 @@ async function handleConnectCommand(sock, msg, args, cleaned) {
             text: `
 ╭━━🌕 *CONNECTION STATUS* 🌕━━╮
 ┃  ⚡ *User:* ${cleaned.cleanNumber}
-┃  🔴 *Prefix:* "${currentPrefix}"
+┃  🔴 *Prefix:* ${prefixDisplay}
 ┃  🐾 *Ultimatefix:* ${ultimatefixStatus}
 ┃  🏗️ *Platform:* ${platform}
 ┃  ⏱️ *Latency:* ${latency}ms ${statusEmoji}
 ┃  ⏰ *Uptime:* ${uptimeText}
+┃  👥 *Members:* ${memberStats ? `${memberStats.totalEvents} events` : 'Not loaded'}
 ┃  🔗 *Status:* ${statusText}
 ┃  🎯 *Mood:* ${mood}
 ┃  👑 *Owner:* ${isOwnerUser ? '✅ Yes' : '❌ No'}
@@ -2764,14 +3101,16 @@ async function startBot(loginMode = 'pair', loginData = null) {
                         const ownerJid = sock.user.id;
                         const cleaned = jidManager.cleanJid(ownerJid);
                         const currentPrefix = getCurrentPrefix();
+                        const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
                         const platform = detectPlatform();
                         
                         const successMessage = `✅ *${BOT_NAME} v${VERSION} CONNECTED SUCCESSFULLY!*\n\n` +
                                              `📋 *SYSTEM INFORMATION:*\n` +
                                              `├─ Version: ${VERSION}\n` +
                                              `├─ Platform: ${platform}\n` +
-                                             `├─ Prefix: "${currentPrefix}"\n` +
+                                             `├─ Prefix: ${prefixDisplay}\n` +
                                              `├─ Mode: ${BOT_MODE}\n` +
+                                             `├─ Member Detection: ✅ ACTIVE\n` +
                                              `├─ Status: 24/7 Ready!\n` +
                                              `└─ Auth Method: ${loginMode === 'session' ? 'Session ID' : 'Pairing Code'}\n\n` +
                                              `👤 *YOUR INFORMATION:*\n` +
@@ -2782,10 +3121,11 @@ async function startBot(loginMode = 'pair', loginData = null) {
                                              `⚡ *BACKGROUND PROCESSES:*\n` +
                                              `├─ Ultimate Fix: ✅ COMPLETE\n` +
                                              `├─ Defibrillator: ✅ ACTIVE\n` +
+                                             `├─ Member Detection: ✅ ACTIVE\n` +
                                              `├─ Auto-Join: ${AUTO_JOIN_ENABLED ? '✅ ENABLED' : '❌ DISABLED'}\n` +
                                              `└─ All systems: ✅ OPERATIONAL\n\n` +
                                              `🎉 *Bot is now fully operational!*\n` +
-                                             `💬 Try using ${currentPrefix}ping to verify.`;
+                                             `💬 Try using ${currentPrefix ? currentPrefix + 'ping' : 'ping'} to verify.`;
                         
                         await sock.sendMessage(ownerJid, { text: successMessage });
                         UltraCleanLogger.success('✅ Professional success message sent to owner');
@@ -2805,6 +3145,10 @@ async function startBot(loginMode = 'pair', loginData = null) {
                 
                 if (statusDetector) {
                     statusDetector.saveStatusLogs();
+                }
+                
+                if (memberDetector) {
+                    memberDetector.saveDetectionData();
                 }
                 
                 try {
@@ -2867,6 +3211,7 @@ async function startBot(loginMode = 'pair', loginData = null) {
 ║ ⏰ Expires : ${chalk.red('10 minutes'.padEnd(38))}║
 ║ 🔄 Auto-Join: ${AUTO_JOIN_ENABLED ? '✅ ENABLED' : '❌ DISABLED'.padEnd(36)}║
 ║ 🔗 Group   : ${chalk.blue(GROUP_NAME.substring(0, 38).padEnd(38))}║
+║ 👥 Member Detector: ✅ ENABLED
 ╚══════════════════════════════════════════════════════════════════════╝
 `));
                             
@@ -2926,6 +3271,20 @@ async function startBot(loginMode = 'pair', loginData = null) {
         
         sock.ev.on('creds.update', saveCreds);
         
+        // Group participant updates for new member detection
+        sock.ev.on('group-participants.update', async (update) => {
+            try {
+                if (memberDetector && memberDetector.enabled) {
+                    const newMembers = await memberDetector.detectNewMembers(sock, update);
+                    if (newMembers && newMembers.length > 0) {
+                        UltraCleanLogger.info(`👥 Detected ${newMembers.length} new members in group`);
+                    }
+                }
+            } catch (error) {
+                UltraCleanLogger.warning(`Member detection error: ${error.message}`);
+            }
+        });
+        
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
             if (type !== 'notify') return;
             
@@ -2977,13 +3336,15 @@ async function triggerRestartAutoFix(sock) {
             
             if (!hasSentRestartMessage) {
                 const currentPrefix = getCurrentPrefix();
+                const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
                 const restartMsg = `🔄 *BOT RESTARTED SUCCESSFULLY!*\n\n` +
                                  `✅ *${BOT_NAME} v${VERSION}* is now online\n` +
                                  `👑 Owner: +${cleaned.cleanNumber}\n` +
-                                 `💬 Prefix: "${currentPrefix}"\n` +
-                                 `👁️ Status Detector: ✅ ACTIVE\n\n` +
+                                 `💬 Prefix: ${prefixDisplay}\n` +
+                                 `👁️ Status Detector: ✅ ACTIVE\n` +
+                                 `👥 Member Detector: ✅ ACTIVE\n\n` +
                                  `🎉 All features are ready!\n` +
-                                 `💬 Try using ${currentPrefix}ping to verify.`;
+                                 `💬 Try using ${currentPrefix ? currentPrefix + 'ping' : 'ping'} to verify.`;
                 
                 await sock.sendMessage(ownerJid, { text: restartMsg });
                 hasSentRestartMessage = true;
@@ -3025,13 +3386,14 @@ async function handleSuccessfulConnection(sock, loginMode, loginData) {
     
     const ownerInfo = jidManager.getOwnerInfo();
     const currentPrefix = getCurrentPrefix();
+    const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
     const platform = detectPlatform();
     
     updateTerminalHeader();
     
     console.log(chalk.greenBright(`
 ╔══════════════════════════════════════════════════════════════════════╗
-║                    🐺 ${chalk.bold('WOLFBOT ONLINE')} - v${VERSION} (SESSION ID SUPPORT) ║
+║                    🐺 ${chalk.bold('WOLFBOT ONLINE')} - v${VERSION} (PREFIXLESS & MEMBER DETECTION) ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  ✅ Connected successfully!                            
 ║  👑 Owner : +${ownerInfo.ownerNumber}
@@ -3040,12 +3402,13 @@ async function handleSuccessfulConnection(sock, loginMode, loginData) {
 ║  📱 Device : ${chalk.cyan(`${BOT_NAME} - Chrome`)}       
 ║  🕒 Time   : ${chalk.yellow(currentTime)}                 
 ║  🔥 Status : ${chalk.redBright('24/7 Ready!')}         
-║  💬 Prefix : "${currentPrefix}"
+║  💬 Prefix : ${prefixDisplay}
 ║  🎛️ Mode   : ${BOT_MODE}
 ║  🔐 Method : ${chalk.cyan(loginMode === 'pair' ? 'PAIR CODE' : 'SESSION ID')}  
 ║  📊 Commands: ${commands.size} commands loaded
 ║  🔧 AUTO ULTIMATE FIX : ✅ ENABLED
 ║  👁️ STATUS DETECTOR  : ✅ ACTIVE
+║  👥 MEMBER DETECTOR  : ✅ ACTIVE
 ║  🛡️ RATE LIMIT PROTECTION : ✅ ACTIVE
 ║  🔗 AUTO-CONNECT ON LINK: ${AUTO_CONNECT_ON_LINK ? '✅' : '❌'}
 ║  🔄 AUTO-CONNECT ON START: ${AUTO_CONNECT_ON_START ? '✅' : '❌'}
@@ -3054,6 +3417,7 @@ async function handleSuccessfulConnection(sock, loginMode, loginData) {
 ║  🔊 CONSOLE FILTER : ✅ ULTRA CLEAN ACTIVE
 ║  ⚡ RESPONSE SPEED : ✅ OPTIMIZED
 ║  🎯 BACKGROUND AUTH : ✅ ENABLED
+║  🎉 WELCOME SYSTEM : ✅ ENABLED
 ╚══════════════════════════════════════════════════════════════════════╝
 `));
     
@@ -3084,11 +3448,12 @@ async function handleSuccessfulConnection(sock, loginMode, loginData) {
                 text: `
 ╭━━🌕 *WELCOME TO ${BOT_NAME.toUpperCase()}* 🌕━━╮
 ┃  ⚡ *User:* ${cleaned.cleanNumber}
-┃  🔴 *Prefix:* "${currentPrefix}"
+┃  🔴 *Prefix:* ${prefixDisplay}
 ┃  🐾 *Ultimatefix:* ✅ 
 ┃  🏗️ *Platform:* ${platform}
 ┃  ⏱️ *Latency:* ${latency}ms
 ┃  ⏰ *Uptime:* ${uptimeText}
+┃  👥 *Member Detection:* ✅ ACTIVE
 ┃  🔗 *Status:* ✅ Connected
 ┃  🎯 *Mood:* Ready to Serve
 ┃  👑 *Owner:* ✅ Yes
@@ -3145,7 +3510,7 @@ async function handleConnectionCloseSilently(lastDisconnect, loginMode, phoneNum
     }, delayTime);
 }
 
-// ====== MESSAGE HANDLER ======
+// ====== MESSAGE HANDLER WITH PREFIXLESS SUPPORT ======
 async function handleIncomingMessage(sock, msg) {
     const startTime = Date.now();
     
@@ -3174,94 +3539,135 @@ async function handleIncomingMessage(sock, msg) {
         
         const currentPrefix = getCurrentPrefix();
         
-        if (textMsg.startsWith(currentPrefix)) {
+        // Check for commands with prefix
+        let commandName = '';
+        let args = [];
+        
+        if (!isPrefixless && textMsg.startsWith(currentPrefix)) {
+            // Regular prefix mode
             const spaceIndex = textMsg.indexOf(' ', currentPrefix.length);
-            const commandName = spaceIndex === -1 
+            commandName = spaceIndex === -1 
                 ? textMsg.slice(currentPrefix.length).toLowerCase().trim()
                 : textMsg.slice(currentPrefix.length, spaceIndex).toLowerCase().trim();
             
-            const args = spaceIndex === -1 ? [] : textMsg.slice(spaceIndex).trim().split(/\s+/);
+            args = spaceIndex === -1 ? [] : textMsg.slice(spaceIndex).trim().split(/\s+/);
+        } else if (isPrefixless) {
+            // Prefixless mode - check if message starts with any command name
+            const words = textMsg.trim().split(/\s+/);
+            const firstWord = words[0].toLowerCase();
             
-            const rateLimitCheck = rateLimiter.canSendCommand(chatId, senderJid, commandName);
-            if (!rateLimitCheck.allowed) {
-                await sock.sendMessage(chatId, { 
-                    text: `⚠️ ${rateLimitCheck.reason}`
-                });
+            // Check if first word is a command
+            if (commands.has(firstWord)) {
+                commandName = firstWord;
+                args = words.slice(1);
+            } else {
+                // Check for aliases
+                for (const [cmdName, command] of commands.entries()) {
+                    if (command.alias && command.alias.includes(firstWord)) {
+                        commandName = cmdName;
+                        args = words.slice(1);
+                        break;
+                    }
+                }
+                
+                // If no command found, check default commands
+                if (!commandName) {
+                    const defaultCommands = ['ping', 'help', 'autojoin', 'uptime', 'statusstats', 
+                                           'ultimatefix', 'prefixinfo', 'defib', 'defibrestart'];
+                    if (defaultCommands.includes(firstWord)) {
+                        commandName = firstWord;
+                        args = words.slice(1);
+                    }
+                }
+            }
+        }
+        
+        // If no command found in either mode, exit
+        if (!commandName) return;
+        
+        const rateLimitCheck = rateLimiter.canSendCommand(chatId, senderJid, commandName);
+        if (!rateLimitCheck.allowed) {
+            await sock.sendMessage(chatId, { 
+                text: `⚠️ ${rateLimitCheck.reason}`
+            });
+            return;
+        }
+        
+        const prefixDisplay = isPrefixless ? '' : currentPrefix;
+        UltraCleanLogger.command(`${chatId.split('@')[0]} → ${prefixDisplay}${commandName} (${Date.now() - startTime}ms)`);
+        
+        if (!checkBotMode(msg, commandName)) {
+            if (BOT_MODE === 'silent' && !jidManager.isOwner(msg)) {
                 return;
             }
-            
-            UltraCleanLogger.command(`${chatId.split('@')[0]} → ${currentPrefix}${commandName} (${Date.now() - startTime}ms)`);
-            
-            if (!checkBotMode(msg, commandName)) {
-                if (BOT_MODE === 'silent' && !jidManager.isOwner(msg)) {
+            try {
+                await sock.sendMessage(chatId, { 
+                    text: `❌ *Command Blocked*\nBot is in ${BOT_MODE} mode.`
+                });
+            } catch {
+                // Silent fail
+            }
+            return;
+        }
+        
+        if (commandName === 'connect' || commandName === 'link') {
+            const cleaned = jidManager.cleanJid(senderJid);
+            await handleConnectCommand(sock, msg, args, cleaned);
+            return;
+        }
+        
+        const command = commands.get(commandName);
+        if (command) {
+            try {
+                if (command.ownerOnly && !jidManager.isOwner(msg)) {
+                    try {
+                        await sock.sendMessage(chatId, { 
+                            text: '❌ *Owner Only Command*'
+                        });
+                    } catch {
+                        // Silent fail
+                    }
                     return;
                 }
-                try {
-                    await sock.sendMessage(chatId, { 
-                        text: `❌ *Command Blocked*\nBot is in ${BOT_MODE} mode.`
-                    });
-                } catch {
-                    // Silent fail
+                
+                if (commandName.includes('sticker')) {
+                    await delay(1000);
                 }
-                return;
+                
+                await command.execute(sock, msg, args, currentPrefix, {
+                    OWNER_NUMBER: OWNER_CLEAN_NUMBER,
+                    OWNER_JID: OWNER_CLEAN_JID,
+                    OWNER_LID: OWNER_LID,
+                    BOT_NAME,
+                    VERSION,
+                    isOwner: () => jidManager.isOwner(msg),
+                    jidManager,
+                    store,
+                    statusDetector: statusDetector,
+                    updatePrefix: updatePrefixImmediately,
+                    getCurrentPrefix: getCurrentPrefix,
+                    rateLimiter: rateLimiter,
+                    defibrillator: defibrillator,
+                    memberDetector: memberDetector,
+                    isPrefixless: isPrefixless
+                });
+            } catch (error) {
+                UltraCleanLogger.error(`Command ${commandName} failed: ${error.message}`);
             }
-            
-            if (commandName === 'connect' || commandName === 'link') {
-                const cleaned = jidManager.cleanJid(senderJid);
-                await handleConnectCommand(sock, msg, args, cleaned);
-                return;
-            }
-            
-            const command = commands.get(commandName);
-            if (command) {
-                try {
-                    if (command.ownerOnly && !jidManager.isOwner(msg)) {
-                        try {
-                            await sock.sendMessage(chatId, { 
-                                text: '❌ *Owner Only Command*'
-                            });
-                        } catch {
-                            // Silent fail
-                        }
-                        return;
-                    }
-                    
-                    if (commandName.includes('sticker')) {
-                        await delay(1000);
-                    }
-                    
-                    await command.execute(sock, msg, args, currentPrefix, {
-                        OWNER_NUMBER: OWNER_CLEAN_NUMBER,
-                        OWNER_JID: OWNER_CLEAN_JID,
-                        OWNER_LID: OWNER_LID,
-                        BOT_NAME,
-                        VERSION,
-                        isOwner: () => jidManager.isOwner(msg),
-                        jidManager,
-                        store,
-                        statusDetector: statusDetector,
-                        updatePrefix: updatePrefixImmediately,
-                        getCurrentPrefix: getCurrentPrefix,
-                        rateLimiter: rateLimiter,
-                        defibrillator: defibrillator
-                    });
-                } catch (error) {
-                    UltraCleanLogger.error(`Command ${commandName} failed: ${error.message}`);
-                }
-            } else {
-                await handleDefaultCommands(commandName, sock, msg, args, currentPrefix);
-            }
+        } else {
+            await handleDefaultCommands(commandName, sock, msg, args, currentPrefix);
         }
     } catch (error) {
         UltraCleanLogger.error(`Message handler error: ${error.message}`);
     }
 }
 
-// ====== DEFAULT COMMANDS ======
+// ====== DEFAULT COMMANDS WITH PREFIXLESS SUPPORT ======
 async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix) {
     const chatId = msg.key.remoteJid;
     const isOwnerUser = jidManager.isOwner(msg);
     const ownerInfo = jidManager.getOwnerInfo();
+    const prefixDisplay = isPrefixless ? '' : currentPrefix;
     
     try {
         switch (commandName) {
@@ -3276,27 +3682,40 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
                     statusInfo += `📊 Detected: ${stats.totalDetected} statuses\n`;
                 }
                 
+                // Member detection stats
+                let memberInfo = '';
+                if (memberDetector) {
+                    const memberStats = memberDetector.getStats();
+                    memberInfo = `👥 Member Detector: ✅ ACTIVE\n`;
+                    memberInfo += `📊 Events: ${memberStats.totalEvents}\n`;
+                }
+                
                 await sock.sendMessage(chatId, { 
-                    text: `🏓 *Pong!*\nLatency: ${latency}ms\nPrefix: "${currentPrefix}"\nMode: ${BOT_MODE}\nOwner: ${isOwnerUser ? 'Yes ✅' : 'No ❌'}\n${statusInfo}Status: Connected ✅`
+                    text: `🏓 *Pong!*\nLatency: ${latency}ms\nPrefix: "${isPrefixless ? 'none (prefixless)' : currentPrefix}"\nMode: ${BOT_MODE}\nOwner: ${isOwnerUser ? 'Yes ✅' : 'No ❌'}\n${statusInfo}${memberInfo}Status: Connected ✅`
                 }, { quoted: msg });
                 break;
                 
             case 'help':
                 let helpText = `🐺 *${BOT_NAME} HELP*\n\n`;
-                helpText += `Prefix: "${currentPrefix}"\n`;
+                helpText += `Prefix: "${isPrefixless ? 'none (prefixless)' : currentPrefix}"\n`;
                 helpText += `Mode: ${BOT_MODE}\n`;
                 helpText += `Commands: ${commands.size}\n\n`;
                 
-                helpText += `*STATUS DETECTOR*\n`;
-                helpText += `${currentPrefix}statusstats - Show status detection stats\n\n`;
-                
                 helpText += `*PREFIX MANAGEMENT*\n`;
-                helpText += `${currentPrefix}setprefix <new_prefix> - Change prefix (persistent)\n`;
-                helpText += `${currentPrefix}prefixinfo - Show prefix information\n\n`;
+                helpText += `${prefixDisplay}setprefix <new_prefix> - Change prefix (persistent)\n`;
+                helpText += `${prefixDisplay}setprefix none - Enable prefixless mode\n`;
+                helpText += `${prefixDisplay}prefixinfo - Show prefix information\n\n`;
+                
+                helpText += `*MEMBER DETECTION*\n`;
+                helpText += `${prefixDisplay}members - Show member detection stats\n`;
+                helpText += `${prefixDisplay}welcomeset - Configure welcome messages\n\n`;
+                
+                helpText += `*STATUS DETECTOR*\n`;
+                helpText += `${prefixDisplay}statusstats - Show status detection stats\n\n`;
                 
                 helpText += `*DEFIBRILLATOR*\n`;
-                helpText += `${currentPrefix}defib - Show defibrillator status\n`;
-                helpText += `${currentPrefix}defibrestart - Force restart bot (owner)\n\n`;
+                helpText += `${prefixDisplay}defib - Show defibrillator status\n`;
+                helpText += `${prefixDisplay}defibrestart - Force restart bot (owner)\n\n`;
                 
                 for (const [category, cmds] of commandCategories.entries()) {
                     helpText += `*${category.toUpperCase()}*\n`;
@@ -3351,8 +3770,16 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
                     statusDetectorInfo += `🕒 Last: ${stats.lastDetection}\n`;
                 }
                 
+                let memberDetectorInfo = '';
+                if (memberDetector) {
+                    const memberStats = memberDetector.getStats();
+                    memberDetectorInfo = `👥 Member Detector: ✅ ACTIVE\n`;
+                    memberDetectorInfo += `📊 Events: ${memberStats.totalEvents}\n`;
+                    memberDetectorInfo += `📈 Groups: ${memberStats.totalGroups}\n`;
+                }
+                
                 await sock.sendMessage(chatId, {
-                    text: `⏰ *UPTIME*\n\n${hours}h ${minutes}m ${seconds}s\n📊 Commands: ${commands.size}\n👑 Owner: +${ownerInfo.ownerNumber}\n💬 Prefix: "${currentPrefix}"\n🎛️ Mode: ${BOT_MODE}\n${statusDetectorInfo}`
+                    text: `⏰ *UPTIME*\n\n${hours}h ${minutes}m ${seconds}s\n📊 Commands: ${commands.size}\n👑 Owner: +${ownerInfo.ownerNumber}\n💬 Prefix: "${isPrefixless ? 'none (prefixless)' : currentPrefix}"\n🎛️ Mode: ${BOT_MODE}\n${statusDetectorInfo}${memberDetectorInfo}`
                 }, { quoted: msg });
                 break;
                 
@@ -3379,6 +3806,54 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
                         text: '❌ Status detector not initialized.'
                     }, { quoted: msg });
                 }
+                break;
+                
+            case 'members':
+            case 'memberstats':
+                if (memberDetector) {
+                    const stats = memberDetector.getStats();
+                    
+                    let membersText = `👥 *MEMBER DETECTION STATS*\n\n`;
+                    membersText += `🔍 Status: ${stats.enabled ? '✅ ACTIVE' : '❌ DISABLED'}\n`;
+                    membersText += `📈 Total events: ${stats.totalEvents}\n`;
+                    membersText += `👥 Groups monitored: ${stats.totalGroups}\n`;
+                    membersText += `📊 Groups cached: ${stats.cachedGroups}\n\n`;
+                    
+                    membersText += `🎯 *Features:*\n`;
+                    membersText += `• Auto-detect new members\n`;
+                    membersText += `• Terminal notifications\n`;
+                    membersText += `• Welcome message system\n`;
+                    membersText += `• Profile picture support\n`;
+                    
+                    await sock.sendMessage(chatId, { text: membersText }, { quoted: msg });
+                } else {
+                    await sock.sendMessage(chatId, { 
+                        text: '❌ Member detector not initialized.'
+                    }, { quoted: msg });
+                }
+                break;
+                
+            case 'welcomeset':
+            case 'welcomeconfig':
+                const welcomeText = `🎉 *WELCOME SYSTEM CONFIGURATION*\n\n` +
+                                  `The welcome system is automatically enabled!\n\n` +
+                                  `*How it works:*\n` +
+                                  `1. Bot detects new members in groups\n` +
+                                  `2. Sends welcome message with profile picture\n` +
+                                  `3. Mentions the new member\n` +
+                                  `4. Shows terminal notification\n\n` +
+                                  `*Default Welcome Message:*\n` +
+                                  `"🎉 Welcome {name} to {group}! 🎊\n\n` +
+                                  `We're now {members} members strong! 💪\n\n` +
+                                  `Please read the group rules and enjoy your stay! 😊"\n\n` +
+                                  `*Variables:*\n` +
+                                  `{name} - Member's name\n` +
+                                  `{group} - Group name\n` +
+                                  `{members} - Total members\n` +
+                                  `{mention} - Mention the member\n\n` +
+                                  `*Note:* System runs automatically in background!`;
+                
+                await sock.sendMessage(chatId, { text: welcomeText }, { quoted: msg });
                 break;
                 
             case 'ultimatefix':
@@ -3414,10 +3889,11 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
                 };
                 
                 let infoText = `⚡ *PREFIX INFORMATION*\n\n`;
-                infoText += `📝 Current Prefix: *${currentPrefix}*\n`;
+                infoText += `📝 Current Prefix: *${isPrefixless ? 'none (prefixless)' : currentPrefix}*\n`;
                 infoText += `⚙️ Default Prefix: ${DEFAULT_PREFIX}\n`;
                 infoText += `🌐 Global Prefix: ${global.prefix || 'Not set'}\n`;
-                infoText += `📁 ENV Prefix: ${process.env.PREFIX || 'Not set'}\n\n`;
+                infoText += `📁 ENV Prefix: ${process.env.PREFIX || 'Not set'}\n`;
+                infoText += `🎯 Prefixless Mode: ${isPrefixless ? '✅ ENABLED' : '❌ DISABLED'}\n\n`;
                 
                 infoText += `📋 *File Status:*\n`;
                 for (const [fileName, exists] of Object.entries(prefixFiles)) {
@@ -3443,6 +3919,9 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
                 const memoryUsage = process.memoryUsage();
                 const memoryMB = Math.round(memoryUsage.rss / 1024 / 1024);
                 
+                // Member detection stats
+                const memberStats = memberDetector ? memberDetector.getStats() : null;
+                
                 let defibText = `🩺 *${BOT_NAME} DEFIBRILLATOR STATUS*\n\n`;
                 defibText += `📊 *Monitoring:* ${stats.isMonitoring ? '✅ ACTIVE' : '❌ INACTIVE'}\n`;
                 defibText += `💓 *Heartbeats:* ${stats.heartbeatCount}\n`;
@@ -3450,6 +3929,7 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
                 defibText += `📨 *Commands:* ${stats.totalCommands}\n`;
                 defibText += `❌ *Failed:* ${stats.failedCommands}\n`;
                 defibText += `💾 *Memory:* ${memoryMB}MB\n`;
+                defibText += `👥 *Member Events:* ${memberStats ? memberStats.totalEvents : 0}\n`;
                 defibText += `⏰ *Last Command:* ${stats.lastCommand}\n`;
                 defibText += `📨 *Last Message:* ${stats.lastMessage}\n`;
                 defibText += `🕒 *Uptime:* ${stats.uptime}s\n\n`;
@@ -3459,6 +3939,7 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
                 defibText += `├─ Owner Reports: Every 1m\n`;
                 defibText += `├─ Auto Health Checks: Every 15s\n`;
                 defibText += `├─ Memory Monitoring: Active\n`;
+                defibText += `├─ Member Detection: ${memberDetector ? '✅ ACTIVE' : '❌ INACTIVE'}\n`;
                 defibText += `├─ Auto-restart: Enabled\n`;
                 defibText += `└─ Command Tracking: Active\n\n`;
                 
@@ -3493,14 +3974,17 @@ async function handleDefaultCommands(commandName, sock, msg, args, currentPrefix
 // ====== MAIN APPLICATION ======
 async function main() {
     try {
-        UltraCleanLogger.success(`🚀 Starting ${BOT_NAME} v${VERSION} (SESSION ID SUPPORT)`);
-        UltraCleanLogger.info(`Loaded prefix: "${getCurrentPrefix()}"`);
+        UltraCleanLogger.success(`🚀 Starting ${BOT_NAME} v${VERSION} (PREFIXLESS & MEMBER DETECTION)`);
+        UltraCleanLogger.info(`Loaded prefix: "${isPrefixless ? 'none (prefixless)' : getCurrentPrefix()}"`);
+        UltraCleanLogger.info(`Prefixless mode: ${isPrefixless ? '✅ ENABLED' : '❌ DISABLED'}`);
         UltraCleanLogger.info(`Auto-connect on link: ${AUTO_CONNECT_ON_LINK ? '✅' : '❌'}`);
         UltraCleanLogger.info(`Auto-connect on start: ${AUTO_CONNECT_ON_START ? '✅' : '❌'}`);
         UltraCleanLogger.info(`Rate limit protection: ${RATE_LIMIT_ENABLED ? '✅' : '❌'}`);
         UltraCleanLogger.info(`Console filtering: ✅ ULTRA CLEAN ACTIVE`);
         UltraCleanLogger.info(`⚡ Response speed: OPTIMIZED (Reduced delays by 50-70%)`);
         UltraCleanLogger.info(`🔐 Session ID support: ✅ ENABLED (WOLF-BOT: format)`);
+        UltraCleanLogger.info(`🎯 Member Detection: ✅ ENABLED (New members in groups)`);
+        UltraCleanLogger.info(`👥 Welcome System: ✅ ENABLED (Auto-welcome new members)`);
         UltraCleanLogger.info(`🎯 Background processes: ✅ ENABLED`);
         
         const loginManager = new LoginManager();
@@ -3525,6 +4009,10 @@ process.on('SIGINT', () => {
     
     if (statusDetector) {
         statusDetector.saveStatusLogs();
+    }
+    
+    if (memberDetector) {
+        memberDetector.saveDetectionData();
     }
     
     if (autoGroupJoinSystem) {
@@ -3567,7 +4055,8 @@ process.on('exit', (code) => {
             uptime: process.uptime(),
             memory: process.memoryUsage(),
             defibrillatorStats: defibrillator.getStats(),
-            restartCount: defibrillator.restartCount
+            restartCount: defibrillator.restartCount,
+            memberDetectionStats: memberDetector ? memberDetector.getStats() : null
         };
         
         try {
