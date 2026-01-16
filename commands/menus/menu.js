@@ -5871,12 +5871,11 @@ case 7: {
 │ lyrics                  
 │ spotify                             
 └────────────────
-
-┌───────────────
+┌─────────────────────────────────
 │ 🤖 MEDIA & AI COMMANDS 🧠 
-├───────────────
+├─────────────────────────────────
 │ ⬇️ MEDIA DOWNLOADS 📥     
-├───────────────
+├─────────────────────────────────
 │ youtube                 
 │ tiktok                 
 │ instagram               
@@ -5888,25 +5887,39 @@ case 7: {
 │ ytmp3
 │ ytv
 │ ytmp4
-│ ytplaydoc                  
-├───────────────
+│ ytplaydoc
+│ song
+│ play
+│ spotify
+│ video
+│ image                  
+├─────────────────────────────────
 │ 🎨 AI GENERATION 💡    
-├───────────────
+├─────────────────────────────────
 │ gpt                     
 │ gemini                  
 │ deepseek                
 │ deepseek+               
 │ analyze                 
 │ suno                    
-│ wolfbot                         
-├───────────────
+│ wolfbot
+│ bard
+│ claudeai
+│ venice
+│ grok
+│ wormgpt
+│ speechwriter
+│ blackbox
+│ mistral
+│ metai                        
+├─────────────────────────────────
 │ 🎨 AI TOOLS💡    
-├───────────────
+├─────────────────────────────────
 │ videogen   
 │ aiscanner
 │ humanizer
 │ summarize     
-└───────────────
+└─────────────────────────────────
 ┌───────────────
 │ 🖼️ IMAGE TOOLS 🖼️
 ├───────────────
