@@ -1,541 +1,364 @@
-// commands/ai/deepseek.js
-import fetch from "node-fetch";
+// import axios from "axios";
 
-export default {
-  name: "deepseek",
-  alias: ["ds", "wolfseek", "deepai", "deep", "wolf"],
-  desc: "Talk with WolfBot's DeepSeek AI via OpenRouter 🐺🧠",
-  category: "AI",
-  usage: ".deepseek <your question>",
-  cooldown: 2,
+// export default {
+//   name: "deepseek",
+//   category: "AI",
+//   aliases: ["deep", "dseek", "dsai"],
+//   description: "Query DeepSeek AI via Keith's API",
+  
+//   async execute(sock, m, args, PREFIX) {
+//     const jid = m.key.remoteJid;
+//     const quoted = m.quoted;
+//     let query = "";
 
-  async execute(sock, m, args) {
-    const jid = m.key.remoteJid;
-    const query = args.join(" ").trim();
+//     // Get query from arguments or quoted message
+//     if (args.length > 0) {
+//       query = args.join(" ");
+//     } else if (quoted && quoted.text) {
+//       query = quoted.text;
+//     } else {
+//       await sock.sendMessage(jid, { 
+//         text: `🤖 *DeepSeek AI*\n\n` +
+//               `💡 *Usage:*\n` +
+//               `• \`${PREFIX}deepseek your question\`\n` +
+//               `• \`${PREFIX}deepseek explain something\`\n` +
+//               `• Reply to a message with \`${PREFIX}deepseek\`\n\n` +
+//               `📌 *Examples:*\n` +
+//               `• \`${PREFIX}deepseek What is artificial intelligence?\`\n` +
+//               `• \`${PREFIX}deepseek How does machine learning work?\`\n` +
+//               `• \`${PREFIX}deep Write Python code for calculator\`\n` +
+//               `• Reply to a text with \`${PREFIX}deepseek\`\n\n` +
+//               `🔤 *Aliases:* ${PREFIX}deep, ${PREFIX}dseek, ${PREFIX}dsai\n\n` +
+//               `🚀 *Features:* Strong in coding, math, and reasoning`
+//       }, { quoted: m });
+//       return;
+//     }
 
-    try {
-      // Check if user provided query
-      if (!query) {
-        return sock.sendMessage(jid, {
-          text: `🐺 *WolfBot DeepSeek* 🧠\n\n` +
-                `*Powered by WolfTech*\n\n` +
-                `*Usage:* .deepseek <your question>\n\n` +
-                `*Examples:*\n` +
-                `• deepseek Explain quantum computing\n` +
-                `• deepseek Write Python code\n` +
-                `• deepseek Solve math problem\n\n` +
-                `🐺 *WolfBot Enhanced*`
-        }, { quoted: m });
-      }
+//     console.log(`🤖 [DEEPSEEK] Query: "${query}"`);
 
-      // Validate query length
-      if (query.length > 8000) {
-        return sock.sendMessage(jid, {
-          text: "❌ *Query too long!*\n\nMaximum 8000 characters allowed."
-        }, { quoted: m });
-      }
+//     try {
+//       // Send initial status
+//       const statusMsg = await sock.sendMessage(jid, { 
+//         text: `🤖 *DEEPSEEK AI*\n` +
+//               `⚡ *Connecting to DeepSeek...*\n` +
+//               `💭 "${query.substring(0, 50)}${query.length > 50 ? '...' : ''}"`
+//       }, { quoted: m });
 
-      // Get API key from embedded function
-      const apiKey = getOpenRouterKey();
+//       let deepseekResponse = '';
+//       let apiUsed = '';
+//       let fallbackUsed = false;
       
-      if (!apiKey || !apiKey.startsWith('sk-or-v1')) {
-        return sock.sendMessage(jid, {
-          text: `⚠️ *API Configuration*\n\n` +
-                `OpenRouter API key needs setup.\n` +
-                `Contact WolfBot administrator.`
-        }, { quoted: m });
-      }
-
-      // Check cooldown
-      const cooldown = checkCooldown(m.sender, this.cooldown);
-      if (!cooldown.allowed) {
-        return sock.sendMessage(jid, {
-          text: `⏳ *Please wait*\n\n` +
-                `Cooldown: ${cooldown.remaining}s remaining\n` +
-                `WolfBot is thinking... 🐺`
-        }, { quoted: m });
-      }
-
-      // Send processing message
-      const processingMsg = await sock.sendMessage(jid, {
-        text: "🌌 *WolfBot is thinking with DeepSeek...*\n\n" +
-              "Powered by OpenRouter API 🧠"
-      }, { quoted: m });
-
-      // Call OpenRouter API for DeepSeek
-      const result = await callOpenRouter(query, apiKey, "deepseek/deepseek-chat");
-
-      if (!result.success) {
-        let errorAction = "Try rephrasing your question";
-        let errorEmoji = "❌";
+//       // Try primary Keith API
+//       try {
+//         const apiUrl = `https://apiskeith.vercel.app/ai/deepseek?q=${encodeURIComponent(query)}`;
+//         console.log(`🌐 [DEEPSEEK] Trying primary API: ${apiUrl}`);
         
-        if (result.error?.includes("rate limit") || result.error?.includes("quota")) {
-          errorAction = "Wait a few minutes and try again";
-          errorEmoji = "⏳";
-        } else if (result.error?.includes("key") || result.error?.includes("auth")) {
-          errorAction = "Contact bot administrator";
-          errorEmoji = "🔑";
-        } else if (result.error?.includes("context")) {
-          errorAction = "Make your question shorter";
-          errorEmoji = "📝";
-        }
+//         const response = await axios({
+//           method: 'GET',
+//           url: apiUrl,
+//           timeout: 25000,
+//           headers: {
+//             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+//             'Accept': 'application/json'
+//           }
+//         });
+
+//         console.log(`✅ [DEEPSEEK] Primary API response status: ${response.status}`);
         
-        return sock.sendMessage(jid, {
-          text: `${errorEmoji} *OpenRouter Error*\n\n` +
-                `*Error:* ${result.error}\n\n` +
-                `💡 *Action:* ${errorAction}`,
-          edit: processingMsg.key
-        });
-      }
+//         if (response.data && typeof response.data === 'object') {
+//           const data = response.data;
+          
+//           console.log('📊 DeepSeek API Response keys:', Object.keys(data));
+          
+//           // Check for busy server error
+//           if (data.error) {
+//             console.log('❌ API returned error:', data.error);
+//             throw new Error(data.error);
+//           }
+          
+//           if (data.status === true && data.result) {
+//             deepseekResponse = data.result;
+//             apiUsed = 'Keith DeepSeek API';
+//             console.log('✅ Using data.result');
+//           } else if (data.response) {
+//             deepseekResponse = data.response;
+//             apiUsed = 'Keith DeepSeek API';
+//             console.log('✅ Using data.response');
+//           } else {
+//             throw new Error('Invalid response format from primary API');
+//           }
+//         } else {
+//           throw new Error('Invalid response from primary API');
+//         }
+        
+//       } catch (primaryError) {
+//         console.log(`⚠️ [DEEPSEEK] Primary API failed: ${primaryError.message}`);
+        
+//         // Try alternative AI APIs
+//         const alternativeAPIs = [
+//           {
+//             name: 'Alternative GPT API',
+//             url: `https://apiskeith.vercel.app/ai/gpt?q=${encodeURIComponent(query)}`
+//           },
+//           {
+//             name: 'Claude AI API',
+//             url: `https://apiskeith.vercel.app/ai/claudeai?q=${encodeURIComponent(query)}`
+//           },
+//           {
+//             name: 'General AI API',
+//             url: `https://api.beautyofweb.com/gpt4?q=${encodeURIComponent(query)}`
+//           }
+//         ];
+        
+//         for (const api of alternativeAPIs) {
+//           try {
+//             console.log(`🔄 [DEEPSEEK] Trying alternative: ${api.name}`);
+            
+//             const altResponse = await axios({
+//               method: 'GET',
+//               url: api.url,
+//               timeout: 20000,
+//               headers: {
+//                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+//                 'Accept': 'application/json'
+//               }
+//             });
+            
+//             if (altResponse.data && typeof altResponse.data === 'object') {
+//               const data = altResponse.data;
+              
+//               if (data.status === true && data.result) {
+//                 deepseekResponse = data.result;
+//                 apiUsed = `${api.name} (DeepSeek alternative)`;
+//                 fallbackUsed = true;
+//                 console.log(`✅ ${api.name} success`);
+//                 break;
+//               } else if (data.response) {
+//                 deepseekResponse = data.response;
+//                 apiUsed = `${api.name} (DeepSeek alternative)`;
+//                 fallbackUsed = true;
+//                 console.log(`✅ ${api.name} success`);
+//                 break;
+//               }
+//             }
+//           } catch (altError) {
+//             console.log(`❌ ${api.name} failed: ${altError.message}`);
+//             continue;
+//           }
+//         }
+        
+//         // If all APIs failed, use intelligent fallback
+//         if (!deepseekResponse) {
+//           console.log(`🔄 [DEEPSEEK] All APIs failed, using intelligent fallback`);
+//           deepseekResponse = generateIntelligentFallback(query);
+//           apiUsed = 'Intelligent Fallback Generator';
+//           fallbackUsed = true;
+//         }
+//       }
 
-      // Format and send response
-      const wolfReply = formatDeepSeekResponse(
-        result.reply, 
-        query, 
-        result.usage,
-        result.model
-      );
+//       // Update status
+//       await sock.sendMessage(jid, {
+//         text: `🤖 *DEEPSEEK AI*\n` +
+//               `⚡ *Processing...* ✅\n` +
+//               `💭 *Formatting response...*\n` +
+//               `⚡ *Finalizing output...*`,
+//         edit: statusMsg.key
+//       });
 
-      await sock.sendMessage(jid, {
-        text: wolfReply,
-        edit: processingMsg.key
-      });
-
-      // Log usage
-      logUsage(m.sender, query, result.usage, result.model);
-
-    } catch (err) {
-      console.error("❌ [DEEPSEEK ERROR]:", err);
+//       // Clean and format response
+//       deepseekResponse = deepseekResponse.trim();
+//       console.log(`📝 [DEEPSEEK] Response length: ${deepseekResponse.length} characters`);
       
-      await sock.sendMessage(jid, {
-        text: `🐺 *WolfBot Error*\n\n` +
-              `*Details:* ${err.message || 'Unknown error'}\n\n` +
-              `🔧 *Solutions:*\n` +
-              `• Try again in a moment\n` +
-              `• Use shorter questions\n` +
-              `• Use .gpt for alternative AI`
-      }, { quoted: m });
-    }
-  }
-};
+//       // Check for error indicators
+//       const lowerResponse = deepseekResponse.toLowerCase();
+//       if (!fallbackUsed && (lowerResponse.includes('error:') || 
+//           lowerResponse.startsWith('error') ||
+//           lowerResponse.includes('failed to') ||
+//           lowerResponse.includes('unavailable') ||
+//           lowerResponse.includes('not found'))) {
+//         console.log('❌ Response contains error indicator');
+//         throw new Error(deepseekResponse);
+//       }
+      
+//       // Check if it's a coding/math query for special formatting
+//       const isCodingQuery = isCodeRelated(query);
+//       const isMathQuery = isMathRelated(query);
+      
+//       // Format response for WhatsApp
+//       deepseekResponse = formatDeepSeekResponse(deepseekResponse, isCodingQuery, isMathQuery);
+      
+//       // Truncate if too long for WhatsApp
+//       if (deepseekResponse.length > 2200) {
+//         deepseekResponse = deepseekResponse.substring(0, 2200) + '\n\n... (response truncated)';
+//       }
 
-// ============================================
-// EMBEDDED API KEY FUNCTION (Obfuscated)
-// ============================================
+//       // Format final message
+//       let resultText = `🤖 *DEEPSEEK AI*\n\n`;
+      
+//       // Add status note if fallback used
+//       if (fallbackUsed) {
+//         resultText += `⚠️ *Note:* Using ${apiUsed} (DeepSeek busy)\n\n`;
+//       }
+      
+//       // Add expertise badge
+//       if (isCodingQuery) {
+//         resultText += `💻 *Specialty: Coding & Programming*\n\n`;
+//       } else if (isMathQuery) {
+//         resultText += `🧮 *Specialty: Mathematics & Logic*\n\n`;
+//       }
+      
+//       // Query display
+//       const displayQuery = query.length > 80 ? query.substring(0, 80) + '...' : query;
+//       resultText += `💭 *Query:* ${displayQuery}\n\n`;
+      
+//       // DeepSeek Response
+//       resultText += `🤖 *Response:*\n${deepseekResponse}\n\n`;
+      
+//       // Footer with source info
+//       resultText += `🔧 *Source:* ${apiUsed}\n`;
+//       if (fallbackUsed) {
+//         resultText += `📢 *DeepSeek API is currently busy*\n`;
+//         resultText += `🔄 *Using alternative AI service*`;
+//       } else {
+//         resultText += `⚡ *Powered by DeepSeek AI*\n`;
+//         resultText += `🚀 *Strong in reasoning, coding, and mathematics*`;
+//       }
 
-function getOpenRouterKey() {
-  // Method 1: Character codes array (obfuscated) - OpenRouter key
-  const keyParts = [
-    // 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
-    [115, 107, 45, 111, 114, 45, 118, 49, 45, 101, 54, 50, 53, 49, 100, 55, 50, 49, 102, 50, 51, 54, 54, 55, 98, 102, 98, 51, 97, 56, 98, 98, 97, 52, 49, 51, 51, 49, 50, 100, 53, 55, 53, 98, 57, 101, 49, 49, 55, 54, 55, 51, 100, 97, 99, 55, 50, 56, 97, 53, 54, 50, 97, 100, 57, 101, 101, 99, 48, 50, 101, 48, 52]
-  ];
+//       // Send final answer
+//       console.log('📤 Sending response to WhatsApp');
+//       await sock.sendMessage(jid, {
+//         text: resultText,
+//         edit: statusMsg.key
+//       });
 
-  // Convert character codes to string
-  const apiKey = keyParts.map(part => 
-    part.map(c => String.fromCharCode(c)).join('')
-  ).join('');
+//       console.log(`✅ Response sent via ${apiUsed}`);
 
-  // Verify it's correct
-  if (apiKey.startsWith('sk-or-v1') && apiKey.length === 73) {
-    return apiKey;
-  }
+//     } catch (error) {
+//       console.error('❌ [DEEPSEEK] FINAL ERROR:', error.message);
+      
+//       // Simplified error message
+//       let errorMessage = `❌ *DEEPSEEK AI ERROR*\n\n`;
+      
+//       if (error.message.includes('busy') || error.message.includes('Server is busy')) {
+//         errorMessage += `• DeepSeek servers are currently busy\n`;
+//         errorMessage += `• High traffic on the API\n`;
+//         errorMessage += `• Please try again in a few minutes\n`;
+//       } else if (error.message.includes('timeout')) {
+//         errorMessage += `• Request timed out\n`;
+//         errorMessage += `• DeepSeek is processing\n`;
+//         errorMessage += `• Try simpler query\n`;
+//       } else if (error.message.includes('network') || error.message.includes('connect')) {
+//         errorMessage += `• Network connection issue\n`;
+//         errorMessage += `• Check your internet\n`;
+//       } else {
+//         errorMessage += `• Error: ${error.message}\n`;
+//       }
+      
+//       errorMessage += `\n🔄 *Quick Alternatives:*\n`;
+//       errorMessage += `1. Try \`${PREFIX}gpt\` - ChatGPT\n`;
+//       errorMessage += `2. Try \`${PREFIX}claudeai\` - Claude AI\n`;
+//       errorMessage += `3. Try \`${PREFIX}bard\` - Google Bard\n`;
+//       errorMessage += `4. Wait 2 minutes then retry\n`;
+      
+//       errorMessage += `\n⚡ *Tip:* DeepSeek is popular for coding/math queries`;
 
-  // Alternative method: Hex encoding
-  return getOpenRouterKeyAlternative();
-}
+//       // Send error message
+//       try {
+//         await sock.sendMessage(jid, {
+//           text: errorMessage
+//         }, { quoted: m });
+//       } catch (sendError) {
+//         console.error('❌ Failed to send error:', sendError);
+//       }
+//     }
+//   }
+// };
 
-function getOpenRouterKeyAlternative() {
-  // Hex string for OpenRouter key
-  const hexString = "736b2d6f722d76312d65363235316437323166323336363762666233613862626134313333313264353735623965313137363733646163373238613536326164396565633032653034";
-  let result = '';
-  for (let i = 0; i < hexString.length; i += 2) {
-    result += String.fromCharCode(parseInt(hexString.substr(i, 2), 16));
-  }
-  return result;
-}
-
-// Backup method using Base64 segments
-function getOpenRouterKeyBackup() {
-  const base64Segments = [
-    "c2stb3ItdjEtZTYyNTFkNzIxZjIzNjY3YmZiM2E4YmJhNDEzMzEyZDU3NWI5ZTExNzY3M2RhYzcyOGE1NjJhZDllZWMwMmUwNA=="
-  ];
+// // Generate intelligent fallback responses
+// function generateIntelligentFallback(query) {
+//   const lowerQuery = query.toLowerCase();
   
-  return Buffer.from(base64Segments[0], 'base64').toString('utf-8');
-}
-
-// ============================================
-// OPENROUTER API CALL FUNCTION
-// ============================================
-
-async function callOpenRouter(query, apiKey, model = "deepseek/deepseek-chat") {
-  try {
-    const startTime = Date.now();
-    
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://wolfbot.com", // Required by OpenRouter
-        "X-Title": "WolfBot WhatsApp", // Optional but good practice
-        "User-Agent": "WolfBot/1.0 (+https://wolfbot.com)"
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          {
-            role: "system",
-            content: `You are WolfBot, a helpful AI assistant powered by DeepSeek through OpenRouter.
-                     Personality: Wise, friendly, and knowledgeable like a wolf spirit guide.
-                     Style: Clear, concise, helpful. Use wolf metaphors occasionally.
-                     Capabilities: Answer questions, write code, explain concepts, solve problems.
-                     Important: Format code blocks properly. Be accurate and helpful.
-                     Sign off as WolfBot.`
-          },
-          {
-            role: "user",
-            content: query
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000, // OpenRouter allows more tokens
-        top_p: 0.9,
-        frequency_penalty: 0.1,
-        presence_penalty: 0.1,
-        stream: false
-      }),
-      timeout: 60000 // 60 seconds for OpenRouter
-    });
-
-    const data = await response.json();
-    const latency = Date.now() - startTime;
-
-    if (!response.ok) {
-      console.error("OpenRouter API Error:", data);
-      
-      let errorMessage = "API request failed";
-      const status = response.status;
-      
-      // OpenRouter specific error handling
-      const errorMap = {
-        400: "Invalid request - check your query format",
-        401: "Invalid API key",
-        402: "Payment required - credits exhausted",
-        429: "Rate limit exceeded - try again later",
-        500: "OpenRouter server error",
-        502: "Model provider error",
-        503: "Service temporarily unavailable"
-      };
-      
-      if (errorMap[status]) {
-        errorMessage = errorMap[status];
-      } else if (data.error?.message) {
-        errorMessage = data.error.message;
-      } else if (data.error?.type) {
-        errorMessage = `Error: ${data.error.type}`;
-      } else if (data.error) {
-        errorMessage = String(data.error);
-      }
-      
-      return {
-        success: false,
-        error: errorMessage,
-        code: status,
-        latency,
-        details: data
-      };
-    }
-
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      return {
-        success: false,
-        error: "No response from AI model",
-        latency,
-        details: data
-      };
-    }
-
-    // Extract OpenRouter specific data
-    const modelInfo = data.model || model;
-    const usage = data.usage || {};
-    const totalCost = data.usage?.total_cost || 0;
-
-    return {
-      success: true,
-      reply: data.choices[0].message.content.trim(),
-      model: modelInfo,
-      usage: {
-        prompt_tokens: usage.prompt_tokens || 0,
-        completion_tokens: usage.completion_tokens || 0,
-        total_tokens: usage.total_tokens || 0,
-        total_cost: totalCost
-      },
-      id: data.id,
-      latency,
-      provider: "OpenRouter"
-    };
-
-  } catch (error) {
-    console.error("OpenRouter Network Error:", error);
-    
-    let errorMsg = "Network error occurred";
-    
-    if (error.name === 'AbortError') {
-      errorMsg = "Request timeout (60 seconds)";
-    } else if (error.code === 'ECONNREFUSED') {
-      errorMsg = "Cannot connect to OpenRouter API";
-    } else if (error.message?.includes('fetch')) {
-      errorMsg = "Network connection failed";
-    }
-    
-    return {
-      success: false,
-      error: errorMsg,
-      details: error.message
-    };
-  }
-}
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-function formatDeepSeekResponse(reply, query, usage = {}, model = "DeepSeek") {
-  // Truncate if too long for WhatsApp
-  const maxLength = 3500;
-  let finalReply = reply;
+//   // Greetings
+//   if (lowerQuery.includes('hello') || lowerQuery.includes('hi') || lowerQuery.includes('hey')) {
+//     return "Hello! I'm an AI assistant (currently using fallback mode as DeepSeek is busy). How can I help you today?";
+//   }
   
-  if (reply.length > maxLength) {
-    finalReply = reply.substring(0, maxLength - 200) + 
-                "\n\n... (response truncated due to length limit)";
-  }
-
-  // Format code blocks better for WhatsApp
-  finalReply = finalReply.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-    const language = lang ? ` (${lang})` : '';
-    return `📝 *Code${language}:*\n${code}\n`;
-  });
-
-  // Format cost if available
-  const costInfo = usage.total_cost ? 
-    `\n💰 *Cost:* $${usage.total_cost.toFixed(6)}` : 
-    '';
-    
-  const tokenInfo = usage.total_tokens ? 
-    `📊 *Tokens:* ${usage.prompt_tokens || '?'} + ${usage.completion_tokens || '?'} = ${usage.total_tokens}` : 
-    '';
-
-  return `🐺 *WolfBot DeepSeek* 🧠
-━━━━━━━━━━━━━━━━
-
-*Powered by OpenRouter*
-*Model:* ${model}
-
-🗨️ *Query:*
-${query.length > 100 ? query.substring(0, 100) + '...' : query}
-
-━━━━━━━━━━━━━━━━
-
-💭 *Response:*
-${finalReply}
-
-━━━━━━━━━━━━━━━━
-${tokenInfo}
-${costInfo}
-⏱️ *Latency:* ${usage.latency || '?'}ms
-🌐 *Context:* 128K tokens
-🐺 *WolfBot Assistant* v2.0`;
-}
-
-// Cooldown management
-const userCooldowns = new Map();
-
-function checkCooldown(userId, cooldownSeconds = 2) {
-  const now = Date.now();
-  const lastUsed = userCooldowns.get(userId);
+//   // Coding questions
+//   if (isCodeRelated(lowerQuery)) {
+//     const codingResponses = [
+//       "I can help with coding questions! DeepSeek is known for excellent programming assistance. Please try the GPT or Claude commands for immediate coding help.",
+//       "For coding queries, DeepSeek provides great explanations. While it's busy, you might want to try the GPT command for programming assistance.",
+//       "DeepSeek excels at coding problems. You could rephrase your question or try another AI command for technical help."
+//     ];
+//     return codingResponses[Math.floor(Math.random() * codingResponses.length)];
+//   }
   
-  if (lastUsed && (now - lastUsed) < cooldownSeconds * 1000) {
-    const remaining = Math.ceil((cooldownSeconds * 1000 - (now - lastUsed)) / 1000);
-    return {
-      allowed: false,
-      remaining
-    };
-  }
+//   // Math questions
+//   if (isMathRelated(lowerQuery)) {
+//     const mathResponses = [
+//       "DeepSeek is strong in mathematics. For math problems, you might want to try the GPT command as an alternative while DeepSeek is busy.",
+//       "Mathematical reasoning is a DeepSeek specialty. Consider trying another AI or waiting a few minutes before retrying.",
+//       "For math queries, DeepSeek provides detailed step-by-step solutions. You could try rephrasing or using a different AI command."
+//     ];
+//     return mathResponses[Math.floor(Math.random() * mathResponses.length)];
+//   }
   
-  userCooldowns.set(userId, now);
-  return { allowed: true };
-}
-
-function logUsage(userId, query, usage, model) {
-  const timestamp = new Date().toLocaleString();
-  const logEntry = {
-    userId,
-    timestamp,
-    queryLength: query.length,
-    tokens: usage.total_tokens || 0,
-    cost: usage.total_cost || 0,
-    model: model || "deepseek-chat",
-    provider: "OpenRouter"
-  };
+//   // General fallback
+//   const generalResponses = [
+//     "I understand your query. DeepSeek AI is currently experiencing high demand. You might want to try another AI command or wait a few minutes.",
+//     "Thanks for your question! DeepSeek servers are busy at the moment. Consider using GPT or Claude AI for immediate assistance.",
+//     "Your query has been received. Due to high traffic on DeepSeek, you could try rephrasing or using a different AI service available."
+//   ];
   
-  console.log(`[OPENROUTER USAGE] ${userId}: ${query.substring(0, 30)}... ` +
-              `(${usage.total_tokens || '?'} tokens, $${usage.total_cost || '0'})`);
-  return logEntry;
-}
+//   return generalResponses[Math.floor(Math.random() * generalResponses.length)];
+// }
 
-// ============================================
-// UTILITY FUNCTIONS (Exportable)
-// ============================================
+// // Helper functions (keep the same as before)
 
-export const deepseekUtils = {
-  // Core API call
-  chat: async (prompt, options = {}) => {
-    const apiKey = getOpenRouterKey();
-    const model = options.model || "deepseek/deepseek-chat";
-    return await callOpenRouter(prompt, apiKey, model);
-  },
+// function extractDeepSeekResponse(obj, depth = 0) {
+//   if (depth > 3) return 'Response too complex';
+//   if (typeof obj === 'string') return obj;
+//   if (Array.isArray(obj)) {
+//     return obj.map(item => extractDeepSeekResponse(item, depth + 1))
+//               .filter(text => text && text.trim())
+//               .join('\n');
+//   }
+//   if (obj && typeof obj === 'object') {
+//     const priorityFields = ['result', 'response', 'answer', 'text', 'content', 'message'];
+//     for (const field of priorityFields) {
+//       if (obj[field]) {
+//         const extracted = extractDeepSeekResponse(obj[field], depth + 1);
+//         if (extracted && extracted.trim()) return extracted;
+//       }
+//     }
+//     for (const key in obj) {
+//       if (typeof obj[key] === 'string' && obj[key].trim()) return obj[key];
+//     }
+//   }
+//   return 'Response received';
+// }
 
-  // Available models on OpenRouter
-  listModels: () => {
-    return [
-      { id: "deepseek/deepseek-chat", name: "DeepSeek Chat", description: "General purpose AI" },
-      { id: "deepseek/deepseek-coder", name: "DeepSeek Coder", description: "Code generation" },
-      { id: "meta-llama/llama-3.1-70b-instruct", name: "Llama 3.1 70B", description: "Meta's large model" },
-      { id: "google/gemini-pro-1.5", name: "Gemini Pro", description: "Google's AI" },
-      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", description: "OpenAI's small model" }
-    ];
-  },
+// function isCodeRelated(query) {
+//   const lowerQuery = query.toLowerCase();
+//   const codeKeywords = ['code', 'program', 'function', 'python', 'javascript', 'java', 'html', 'css', 'algorithm'];
+//   return codeKeywords.some(keyword => lowerQuery.includes(keyword));
+// }
 
-  // Code generation with DeepSeek Coder
-  generateCode: async (prompt, language = "python") => {
-    const systemPrompt = `You are WolfBot Code Assistant. Generate clean, efficient ${language} code with comments.`;
-    const apiKey = getOpenRouterKey();
-    
-    const result = await callOpenRouter(
-      `${systemPrompt}\n\nUser request: ${prompt}`,
-      apiKey,
-      "deepseek/deepseek-coder"
-    );
-    
-    return result;
-  },
+// function isMathRelated(query) {
+//   const lowerQuery = query.toLowerCase();
+//   const mathKeywords = ['math', 'calculate', 'equation', 'algebra', 'geometry', 'solve', 'derivative', 'integral'];
+//   return mathKeywords.some(keyword => lowerQuery.includes(keyword));
+// }
 
-  // API status check
-  getApiStatus: () => {
-    const key = getOpenRouterKey();
-    return {
-      configured: key && key.startsWith('sk-or-v1'),
-      length: key?.length || 0,
-      valid: key?.length === 73,
-      provider: "OpenRouter",
-      modelsAvailable: 5
-    };
-  },
-
-  // Test connection
-  testConnection: async () => {
-    try {
-      const apiKey = getOpenRouterKey();
-      const result = await callOpenRouter("Say 'WolfBot via OpenRouter is connected'", apiKey);
-      
-      return {
-        success: result.success,
-        message: result.success ? 'OpenRouter API is working' : result.error,
-        latency: result.latency,
-        cost: result.usage?.total_cost || 0,
-        apiKeyValid: apiKey && apiKey.length === 73
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-        apiKeyValid: false
-      };
-    }
-  },
-
-  // Clear cooldown for user
-  clearCooldown: (userId) => {
-    userCooldowns.delete(userId);
-    return true;
-  },
-
-  // Get usage statistics
-  getUsageStats: () => {
-    return {
-      activeUsers: userCooldowns.size,
-      cooldownEnabled: true,
-      cooldownSeconds: 2,
-      provider: "OpenRouter"
-    };
-  },
-
-  // Switch model dynamically
-  switchModel: async (prompt, modelId) => {
-    const apiKey = getOpenRouterKey();
-    return await callOpenRouter(prompt, apiKey, modelId);
-  }
-};
-
-// OpenRouter specific models
-export const OPENROUTER_MODELS = {
-  DEEPSEEK_CHAT: "deepseek/deepseek-chat",
-  DEEPSEEK_CODER: "deepseek/deepseek-coder",
-  LLAMA_70B: "meta-llama/llama-3.1-70b-instruct",
-  GEMINI_PRO: "google/gemini-pro-1.5",
-  GPT4_MINI: "openai/gpt-4o-mini",
-  CLAUDE_3_5: "anthropic/claude-3.5-sonnet"
-};
-
-// Optional: Get model pricing info
-export const MODEL_PRICING = {
-  "deepseek/deepseek-chat": {
-    input: 0.00014, // $ per 1K tokens
-    output: 0.00028,
-    context: 128000
-  },
-  "deepseek/deepseek-coder": {
-    input: 0.00014,
-    output: 0.00028,
-    context: 128000
-  }
-};
-
-// Advanced: Conversation with history
-async function callOpenRouterWithHistory(messages, apiKey, model = "deepseek/deepseek-chat") {
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://wolfbot.com"
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 4000
-    })
-  });
-
-  return response.json();
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// function formatDeepSeekResponse(text, isCodingQuery, isMathQuery) {
+//   if (!text) return 'Response not available';
+//   text = text.trim();
+  
+//   // Clean response
+//   text = text.replace(/\[\d+\]/g, '');
+//   text = text.replace(/\*\*(.*?)\*\*/g, '*$1*');
+//   text = text.replace(/\s+/g, ' ');
+//   text = text.replace(/\n\s+/g, '\n');
+  
+//   return text;
+// }

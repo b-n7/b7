@@ -6666,69 +6666,69 @@ class ProfessionalDefibrillator {
         }
     }
     
-    async sendOwnerHeartbeatReport(sock) {
-        try {
-            if (!sock || !this.ownerJid) return;
+    // async sendOwnerHeartbeatReport(sock) {
+    //     try {
+    //         if (!sock || !this.ownerJid) return;
             
-            const now = Date.now();
-            if (now - this.lastOwnerReport < 50000) return;
+    //         const now = Date.now();
+    //         if (now - this.lastOwnerReport < 50000) return;
             
-            const uptime = process.uptime();
-            const hours = Math.floor(uptime / 3600);
-            const minutes = Math.floor((uptime % 3600) / 60);
+    //         const uptime = process.uptime();
+    //         const hours = Math.floor(uptime / 3600);
+    //         const minutes = Math.floor((uptime % 3600) / 60);
             
-            const memoryUsage = process.memoryUsage();
-            const memoryMB = Math.round(memoryUsage.rss / 1024 / 1024);
+    //         const memoryUsage = process.memoryUsage();
+    //         const memoryMB = Math.round(memoryUsage.rss / 1024 / 1024);
             
-            const currentPrefix = getCurrentPrefix();
-            const platform = detectPlatform();
-            const isConnected = sock && sock.user && sock.user.id;
+    //         const currentPrefix = getCurrentPrefix();
+    //         const platform = detectPlatform();
+    //         const isConnected = sock && sock.user && sock.user.id;
             
-            const cpm = this.calculateCPM();
-            const availability = this.calculateAvailability();
+    //         const cpm = this.calculateCPM();
+    //         const availability = this.calculateAvailability();
             
-            // Get member detection stats
-            const memberStats = memberDetector ? memberDetector.getStats() : null;
+    //         // Get member detection stats
+    //         const memberStats = memberDetector ? memberDetector.getStats() : null;
             
-            // Get anti-viewonce stats
-            const antiviewonceStats = antiViewOnceSystem ? antiViewOnceSystem.getStats() : null;
+    //         // Get anti-viewonce stats
+    //         const antiviewonceStats = antiViewOnceSystem ? antiViewOnceSystem.getStats() : null;
             
-            let statusEmoji = "🟢";
-            let statusText = "Excellent";
+    //         let statusEmoji = "🟢";
+    //         let statusText = "Excellent";
             
-            if (memoryMB > 300) {
-                statusEmoji = "🟡";
-                statusText = "Good";
-            }
+    //         if (memoryMB > 300) {
+    //             statusEmoji = "🟡";
+    //             statusText = "Good";
+    //         }
             
-            if (memoryMB > 500) {
-                statusEmoji = "🔴";
-                statusText = "Warning";
-            }
+    //         if (memoryMB > 500) {
+    //             statusEmoji = "🔴";
+    //             statusText = "Warning";
+    //         }
             
-            const reportMessage = `📊 *${BOT_NAME} HEARTBEAT REPORT*\n\n` +
-                                `⏰ *Uptime:* ${hours}h ${minutes}m\n` +
-                                `💾 *Memory:* ${memoryMB}MB ${statusEmoji}\n` +
-                                `📊 *Commands:* ${this.commandStats.total}\n` +
-                                `👥 *Members Detected:* ${memberStats ? memberStats.totalEvents : 0}\n` +
-                                `🔐 *ViewOnce Captured:* ${antiviewonceStats ? antiviewonceStats.total : 0}\n` +
-                                `⚡ *CPM:* ${cpm}/min\n` +
-                                `📈 *Availability:* ${availability}%\n` +
-                                `💬 *Prefix:* "${isPrefixless ? 'none (prefixless)' : currentPrefix}"\n` +
-                                `🔗 *Status:* ${isConnected ? 'Connected ✅' : 'Disconnected ❌'}\n` +
-                                `🏗️ *Platform:* ${platform}\n` +
-                                `🩺 *Health:* ${statusText}\n\n` +
-                                `_Last updated: ${new Date().toLocaleTimeString()}_`;
+    //         const reportMessage = `📊 *${BOT_NAME} HEARTBEAT REPORT*\n\n` +
+    //                             `⏰ *Uptime:* ${hours}h ${minutes}m\n` +
+    //                             `💾 *Memory:* ${memoryMB}MB ${statusEmoji}\n` +
+    //                             `📊 *Commands:* ${this.commandStats.total}\n` +
+    //                             `👥 *Members Detected:* ${memberStats ? memberStats.totalEvents : 0}\n` +
+    //                             `🔐 *ViewOnce Captured:* ${antiviewonceStats ? antiviewonceStats.total : 0}\n` +
+    //                             `⚡ *CPM:* ${cpm}/min\n` +
+    //                             `📈 *Availability:* ${availability}%\n` +
+    //                             `💬 *Prefix:* "${isPrefixless ? 'none (prefixless)' : currentPrefix}"\n` +
+    //                             `🔗 *Status:* ${isConnected ? 'Connected ✅' : 'Disconnected ❌'}\n` +
+    //                             `🏗️ *Platform:* ${platform}\n` +
+    //                             `🩺 *Health:* ${statusText}\n\n` +
+    //                             `_Last updated: ${new Date().toLocaleTimeString()}_`;
             
-            await sock.sendMessage(this.ownerJid, { text: reportMessage });
+    //         await sock.sendMessage(this.ownerJid, { text: reportMessage });
             
-            this.lastOwnerReport = now;
-            UltraCleanLogger.info('Owner heartbeat report sent');
+    //         this.lastOwnerReport = now;
+    //         UltraCleanLogger.info('Owner heartbeat report sent');
             
-        } catch (error) {
-            UltraCleanLogger.error(`Owner report error: ${error.message}`);
-        }
-    }
+    //     } catch (error) {
+    //         UltraCleanLogger.error(`Owner report error: ${error.message}`);
+    //     }
+    // }
     
     async sendStartupReport(sock) {
         try {
@@ -7050,83 +7050,83 @@ class ProfessionalDefibrillator {
 const defibrillator = new ProfessionalDefibrillator();
 
 // ====== CONNECT COMMAND HANDLER (OPTIMIZED) ======
-async function handleConnectCommand(sock, msg, args, cleaned) {
-    try {
-        const chatJid = msg.key.remoteJid || cleaned.cleanJid;
-        const start = Date.now();
-        const currentPrefix = getCurrentPrefix();
-        const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
-        const platform = detectPlatform();
+// async function handleConnectCommand(sock, msg, args, cleaned) {
+//     try {
+//         const chatJid = msg.key.remoteJid || cleaned.cleanJid;
+//         const start = Date.now();
+//         const currentPrefix = getCurrentPrefix();
+//         const prefixDisplay = isPrefixless ? 'none (prefixless)' : `"${currentPrefix}"`;
+//         const platform = detectPlatform();
         
-        const loadingMessage = await sock.sendMessage(chatJid, {
-            text: `🐺 *${BOT_NAME}* is checking connection... █▒▒▒▒▒▒▒▒▒`
-        }, { quoted: msg });
+//         const loadingMessage = await sock.sendMessage(chatJid, {
+//             text: `🐺 *${BOT_NAME}* is checking connection... █▒▒▒▒▒▒▒▒▒`
+//         }, { quoted: msg });
 
-        const latency = Date.now() - start;
+//         const latency = Date.now() - start;
         
-        const uptime = process.uptime();
-        const hours = Math.floor(uptime / 3600);
-        const minutes = Math.floor((uptime % 3600) / 60);
-        const seconds = Math.floor(uptime % 60);
-        const uptimeText = `${hours}h ${minutes}m ${seconds}s`;
+//         const uptime = process.uptime();
+//         const hours = Math.floor(uptime / 3600);
+//         const minutes = Math.floor((uptime % 3600) / 60);
+//         const seconds = Math.floor(uptime % 60);
+//         const uptimeText = `${hours}h ${minutes}m ${seconds}s`;
         
-        const isOwnerUser = jidManager.isOwner(msg);
-        const ultimatefixStatus = isOwnerUser ? '✅' : '❌';
+//         const isOwnerUser = jidManager.isOwner(msg);
+//         const ultimatefixStatus = isOwnerUser ? '✅' : '❌';
         
-        // Get member detection stats
-        const memberStats = memberDetector ? memberDetector.getStats() : null;
+//         // Get member detection stats
+//         const memberStats = memberDetector ? memberDetector.getStats() : null;
         
-        // Get anti-viewonce stats
-        const antiviewonceStats = antiViewOnceSystem ? antiViewOnceSystem.getStats() : null;
+//         // Get anti-viewonce stats
+//         const antiviewonceStats = antiViewOnceSystem ? antiViewOnceSystem.getStats() : null;
         
-        let statusEmoji, statusText, mood;
-        if (latency <= 100) {
-            statusEmoji = "🟢";
-            statusText = "Excellent";
-            mood = "⚡Superb Connection";
-        } else if (latency <= 300) {
-            statusEmoji = "🟡";
-            statusText = "Good";
-            mood = "📡Stable Link";
-        } else {
-            statusEmoji = "🔴";
-            statusText = "Slow";
-            mood = "🌑Needs Optimization";
-        }
+//         let statusEmoji, statusText, mood;
+//         if (latency <= 100) {
+//             statusEmoji = "🟢";
+//             statusText = "Excellent";
+//             mood = "⚡Superb Connection";
+//         } else if (latency <= 300) {
+//             statusEmoji = "🟡";
+//             statusText = "Good";
+//             mood = "📡Stable Link";
+//         } else {
+//             statusEmoji = "🔴";
+//             statusText = "Slow";
+//             mood = "🌑Needs Optimization";
+//         }
         
-        const timePassed = Date.now() - start;
-        const remainingTime = Math.max(500, 1000 - timePassed);
-        if (remainingTime > 0) {
-            await delay(remainingTime);
-        }
+//         const timePassed = Date.now() - start;
+//         const remainingTime = Math.max(500, 1000 - timePassed);
+//         if (remainingTime > 0) {
+//             await delay(remainingTime);
+//         }
 
-        await sock.sendMessage(chatJid, {
-            text: `
-╭━━🌕 *CONNECTION STATUS* 🌕━━╮
-┃  ⚡ *User:* ${cleaned.cleanNumber}
-┃  🔴 *Prefix:* ${prefixDisplay}
-┃  🐾 *Ultimatefix:* ${ultimatefixStatus}
-┃  🏗️ *Platform:* ${platform}
-┃  ⏱️ *Latency:* ${latency}ms ${statusEmoji}
-┃  ⏰ *Uptime:* ${uptimeText}
-┃  👥 *Members:* ${memberStats ? `${memberStats.totalEvents} events` : 'Not loaded'}
-┃  🔐 *ViewOnce:* ${antiviewonceStats ? `${antiviewonceStats.total} captured` : 'Not loaded'}
-┃  🔗 *Status:* ${statusText}
-┃  🎯 *Mood:* ${mood}
-┃  👑 *Owner:* ${isOwnerUser ? '✅ Yes' : '❌ No'}
-╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
-_🐺 The Moon Watches — ..._
-`,
-            edit: loadingMessage.key
-        }, { quoted: msg });
+//         await sock.sendMessage(chatJid, {
+//             text: `
+// ╭━━🌕 *CONNECTION STATUS* 🌕━━╮
+// ┃  ⚡ *User:* ${cleaned.cleanNumber}
+// ┃  🔴 *Prefix:* ${prefixDisplay}
+// ┃  🐾 *Ultimatefix:* ${ultimatefixStatus}
+// ┃  🏗️ *Platform:* ${platform}
+// ┃  ⏱️ *Latency:* ${latency}ms ${statusEmoji}
+// ┃  ⏰ *Uptime:* ${uptimeText}
+// ┃  👥 *Members:* ${memberStats ? `${memberStats.totalEvents} events` : 'Not loaded'}
+// ┃  🔐 *ViewOnce:* ${antiviewonceStats ? `${antiviewonceStats.total} captured` : 'Not loaded'}
+// ┃  🔗 *Status:* ${statusText}
+// ┃  🎯 *Mood:* ${mood}
+// ┃  👑 *Owner:* ${isOwnerUser ? '✅ Yes' : '❌ No'}
+// ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+// _🐺 The Moon Watches — ..._
+// `,
+//             edit: loadingMessage.key
+//         }, { quoted: msg });
         
-        UltraCleanLogger.command(`Connect from ${cleaned.cleanNumber}`);
+//         UltraCleanLogger.command(`Connect from ${cleaned.cleanNumber}`);
         
-        return true;
-    } catch {
-        return false;
-    }
-}
+//         return true;
+//     } catch {
+//         return false;
+//     }
+// }
 
 // ====== STATUS DETECTOR ======
 class StatusDetector {
