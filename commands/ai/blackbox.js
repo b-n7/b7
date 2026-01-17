@@ -118,10 +118,8 @@ export default {
       
       // ====== UPDATE STATUS ======
       await sock.sendMessage(jid, {
-        text: `⚡ *BLACKBOX AI*\n` +
-              `🚀 *Initializing...* ✅\n` +
-              `🧠 *Processing complex query...*\n` +
-              `⚡ *Analyzing solution...*`,
+        text: `⚡ *BLACKBOX AI* Initializing...\n` +
+           ``,
         edit: statusMsg.key
       });
 
@@ -212,7 +210,7 @@ export default {
       resultText += `✨ *Blackbox Solution:*\n${aiResponse}\n\n`;
       
       // Footer
-     // resultText += `⚡ *Powered by Keith API | Blackbox AI*`;
+     //resultText += `⚡ *Powered by Keith API | Blackbox AI*`;
 
       // ====== SEND FINAL ANSWER ======
       await sock.sendMessage(jid, {
