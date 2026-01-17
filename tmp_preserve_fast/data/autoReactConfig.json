@@ -1,0 +1,75 @@
+{
+  "enabled": true,
+  "mode": "fixed",
+  "fixedEmoji": "🐺",
+  "reactions": [
+    "🐺",
+    "❤️",
+    "👍",
+    "🔥",
+    "🎉",
+    "😂",
+    "😮",
+    "👏",
+    "🎯",
+    "💯",
+    "🌟",
+    "✨",
+    "⚡",
+    "💥",
+    "🫶"
+  ],
+  "logs": [
+    {
+      "sender": "2348026483904",
+      "reaction": "🐺",
+      "type": "status",
+      "timestamp": 1768595702267
+    },
+    {
+      "sender": "254727598248",
+      "reaction": "🐺",
+      "type": "status",
+      "timestamp": 1768595803076
+    },
+    {
+      "sender": "243978017083",
+      "reaction": "🐺",
+      "type": "status",
+      "timestamp": 1768595942594
+    },
+    {
+      "sender": "254784766028",
+      "reaction": "🐺",
+      "type": "status",
+      "timestamp": 1768596012705
+    },
+    {
+      "sender": "254784766028",
+      "reaction": "🐺",
+      "type": "status",
+      "timestamp": 1768596018326
+    },
+    {
+      "sender": "254100922197",
+      "reaction": "🐺",
+      "type": "status",
+      "timestamp": 1768596081086
+    }
+  ],
+  "totalReacted": 6,
+  "lastReacted": {
+    "sender": "254100922197",
+    "reaction": "🐺",
+    "type": "status",
+    "timestamp": 1768596081086
+  },
+  "consecutiveReactions": 1,
+  "lastSender": "254100922197",
+  "settings": {
+    "rateLimitDelay": 500,
+    "reactToAll": true,
+    "ignoreConsecutiveLimit": true,
+    "noHourlyLimit": true
+  }
+}
