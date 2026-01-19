@@ -2028,21 +2028,165 @@ case 3: {
 
 
 
-
-      case 4: {
-  // 🖼️ Full info + image + commands
+case 4: {
+  // First, get the bot name BEFORE showing loading message
+  const getBotName = () => {
+    try {
+      const possiblePaths = [
+        './bot_settings.json',
+        path.join(__dirname, 'bot_settings.json'),
+        path.join(__dirname, '../bot_settings.json'),
+        path.join(__dirname, '../../bot_settings.json'),
+        path.join(__dirname, '../../../bot_settings.json'),
+        path.join(__dirname, '../commands/owner/bot_settings.json'),
+      ];
+      
+      for (const settingsPath of possiblePaths) {
+        if (fs.existsSync(settingsPath)) {
+          try {
+            const settingsData = fs.readFileSync(settingsPath, 'utf8');
+            const settings = JSON.parse(settingsData);
+            
+            if (settings.botName && settings.botName.trim() !== '') {
+              return settings.botName.trim();
+            }
+          } catch (parseError) {}
+        }
+      }
+      
+      if (global.BOT_NAME) {
+        return global.BOT_NAME;
+      }
+      
+      if (process.env.BOT_NAME) {
+        return process.env.BOT_NAME;
+      }
+      
+    } catch (error) {}
+    
+    return 'WOLFBOT';
+  };
   
-  // Add these helper functions (same as other cases)
+  // Get the current bot name
+  const currentBotName = getBotName();
+  
+  // ========== CREATE FAKE CONTACT FUNCTION ==========
+  const createFakeContact = (message) => {
+    const jid = message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0];
+    return {
+      key: {
+        remoteJid: "status@broadcast",
+        fromMe: false,
+        id: "WOLF-X"
+      },
+      message: {
+        contactMessage: {
+          displayName: "WOLF BOT",
+          vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:WOLF BOT\nitem1.TEL;waid=${jid}:${jid}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+        }
+      },
+      participant: "0@s.whatsapp.net"
+    };
+  };
+  
+  // Create fake contact for quoted messages
+  const fkontak = createFakeContact(m);
+  
+  // ========== SIMPLE LOADING MESSAGE ==========
+  const loadingMessage = `⚡ ${currentBotName} menu loading...`;
+  
+  // Send loading message with fake contact
+  await sock.sendMessage(jid, { 
+    text: loadingMessage 
+  }, { 
+    quoted: fkontak 
+  });
+  
+  // Add a small delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // ========== REST OF YOUR EXISTING CODE ==========
+  // 📝 Full info + commands (with individual toggles)
+  let finalText = "";
+  
+  // ========== ADD FADED TEXT HELPER FUNCTION ==========
+  const createFadedEffect = (text) => {
+    /**
+     * Creates WhatsApp's "faded/spoiler" text effect
+     * @param {string} text - Text to apply faded effect to
+     * @returns {string} Formatted text with faded effect
+     */
+    
+    // WhatsApp needs a LOT of invisible characters for the fade effect
+    // Create a string with 800-1000 invisible characters
+    const invisibleChars = [
+      '\u200D', // ZERO WIDTH JOINER
+      '\u200C', // ZERO WIDTH NON-JOINER
+      '\u2060', // WORD JOINER
+      '\uFEFF', // ZERO WIDTH NO-BREAK SPACE
+      '\u200B', // ZERO WIDTH SPACE
+      '\u200E', // LEFT-TO-RIGHT MARK
+      '\u200F', // RIGHT-TO-LEFT MARK
+      '\u2061', // FUNCTION APPLICATION
+      '\u2062', // INVISIBLE TIMES
+      '\u2063', // INVISIBLE SEPARATOR
+      '\u2064', // INVISIBLE PLUS
+    ];
+    
+    // Create a long string of invisible characters (900 chars)
+    let fadeString = '';
+    for (let i = 0; i < 900; i++) {
+      fadeString += invisibleChars[i % invisibleChars.length];
+    }
+    
+    // Add some line breaks and more invisible chars for better effect
+    fadeString += '\n\u200B\u200B\u200B\u200B\u200B\u200B\u200B\u200B\n';
+    
+    return `${fadeString}${text}`;
+  };
+  
+  // ========== ADD "READ MORE" HELPER FUNCTION ==========
+  const createReadMoreEffect = (text1, text2) => {
+    /**
+     * Creates WhatsApp's "Read more" effect using invisible characters
+     * @param {string} text1 - First part (visible before "Read more")
+     * @param {string} text2 - Second part (hidden after "Read more")
+     * @returns {string} Formatted text with "Read more" effect
+     */
+    
+    // WhatsApp needs MORE invisible characters to trigger "Read more"
+    // Use 500+ characters for better reliability
+    const invisibleChars = [
+      '\u200E',    // LEFT-TO-RIGHT MARK
+      '\u200F',    // RIGHT-TO-LEFT MARK
+      '\u200B',    // ZERO WIDTH SPACE
+      '\u200C',    // ZERO WIDTH NON-JOINER
+      '\u200D',    // ZERO WIDTH JOINER
+      '\u2060',    // WORD JOINER
+      '\uFEFF',    // ZERO WIDTH NO-BREAK SPACE
+    ];
+    
+    // Create a LONG string of invisible characters (500-600 chars)
+    // WhatsApp needs enough to break the line detection
+    const invisibleString = Array.from({ length: 550 }, 
+      (_, i) => invisibleChars[i % invisibleChars.length]
+    ).join('');
+    
+    // Add a newline after invisible characters for cleaner break
+    return `${text1}${invisibleString}\n${text2}`;
+  };
+  // ========== END OF HELPER FUNCTIONS ==========
+  
+  // Helper functions (same as before)
   const getBotMode = () => {
     try {
-      // Check multiple possible locations with priority order
       const possiblePaths = [
-        './bot_mode.json',  // Root directory (most likely)
-        path.join(__dirname, 'bot_mode.json'),  // Same directory as menu
-        path.join(__dirname, '../bot_mode.json'),  // Parent directory
-        path.join(__dirname, '../../bot_mode.json'),  // 2 levels up
-        path.join(__dirname, '../../../bot_mode.json'),  // 3 levels up
-        path.join(__dirname, '../commands/owner/bot_mode.json'),  // Owner commands directory
+        './bot_mode.json',
+        path.join(__dirname, 'bot_mode.json'),
+        path.join(__dirname, '../bot_mode.json'),
+        path.join(__dirname, '../../bot_mode.json'),
+        path.join(__dirname, '../../../bot_mode.json'),
+        path.join(__dirname, '../commands/owner/bot_mode.json'),
       ];
       
       for (const modePath of possiblePaths) {
@@ -2051,7 +2195,6 @@ case 3: {
             const modeData = JSON.parse(fs.readFileSync(modePath, 'utf8'));
             
             if (modeData.mode) {
-              // Format for display
               let displayMode;
               switch(modeData.mode.toLowerCase()) {
                 case 'public':
@@ -2060,15 +2203,21 @@ case 3: {
                 case 'silent':
                   displayMode = '🔇 Silent';
                   break;
+                case 'private':
+                  displayMode = '🔒 Private';
+                  break;
+                case 'group-only':
+                  displayMode = '👥 Group Only';
+                  break;
+                case 'maintenance':
+                  displayMode = '🛠️ Maintenance';
+                  break;
                 default:
                   displayMode = `⚙️ ${modeData.mode.charAt(0).toUpperCase() + modeData.mode.slice(1)}`;
               }
-              
               return displayMode;
             }
-          } catch (parseError) {
-            // Continue to next path
-          }
+          } catch (parseError) {}
         }
       }
       
@@ -2083,301 +2232,584 @@ case 3: {
         return process.env.BOT_MODE === 'silent' ? '🔇 Silent' : '🌍 Public';
       }
       
-    } catch (error) {
-      // Error handling
-    }
+    } catch (error) {}
     
-    return '🌍 Public'; // Default fallback
+    return '🌍 Public';
   };
   
-  const getBotName = () => {
+  const getOwnerName = () => {
     try {
-      // Check multiple possible locations with priority order
-      const possiblePaths = [
-        './bot_settings.json',  // Root directory (most likely)
-        path.join(__dirname, 'bot_settings.json'),  // Same directory as menu
-        path.join(__dirname, '../bot_settings.json'),  // Parent directory
-        path.join(__dirname, '../../bot_settings.json'),  // 2 levels up
-        path.join(__dirname, '../../../bot_settings.json'),  // 3 levels up
-        path.join(__dirname, '../commands/owner/bot_settings.json'),  // Owner commands directory
+      const botSettingsPaths = [
+        './bot_settings.json',
+        path.join(__dirname, 'bot_settings.json'),
+        path.join(__dirname, '../bot_settings.json'),
+        path.join(__dirname, '../../bot_settings.json'),
       ];
       
-      for (const settingsPath of possiblePaths) {
+      for (const settingsPath of botSettingsPaths) {
         if (fs.existsSync(settingsPath)) {
           try {
             const settingsData = fs.readFileSync(settingsPath, 'utf8');
             const settings = JSON.parse(settingsData);
             
-            if (settings.botName && settings.botName.trim() !== '') {
-              return settings.botName.trim();
+            if (settings.ownerName && settings.ownerName.trim() !== '') {
+              return settings.ownerName.trim();
             }
-          } catch (parseError) {
-            // Continue to next path
-          }
+          } catch (parseError) {}
         }
       }
       
-      // Fallback to global variables
-      if (global.BOT_NAME) {
-        return global.BOT_NAME;
+      const ownerPath = path.join(__dirname, 'owner.json');
+      if (fs.existsSync(ownerPath)) {
+        const ownerData = fs.readFileSync(ownerPath, 'utf8');
+        const ownerInfo = JSON.parse(ownerData);
+        
+        if (ownerInfo.owner && ownerInfo.owner.trim() !== '') {
+          return ownerInfo.owner.trim();
+        } else if (ownerInfo.number && ownerInfo.number.trim() !== '') {
+          return ownerInfo.number.trim();
+        } else if (ownerInfo.phone && ownerInfo.phone.trim() !== '') {
+          return ownerInfo.phone.trim();
+        } else if (ownerInfo.contact && ownerInfo.contact.trim() !== '') {
+          return ownerInfo.contact.trim();
+        } else if (Array.isArray(ownerInfo) && ownerInfo.length > 0) {
+          const owner = typeof ownerInfo[0] === 'string' ? ownerInfo[0] : "Unknown";
+          return owner;
+        }
       }
       
-      // Fallback to environment variable
-      if (process.env.BOT_NAME) {
-        return process.env.BOT_NAME;
+      if (global.OWNER_NAME) {
+        return global.OWNER_NAME;
+      }
+      if (global.owner) {
+        return global.owner;
+      }
+      if (process.env.OWNER_NUMBER) {
+        return process.env.OWNER_NUMBER;
       }
       
-    } catch (error) {
-      // Error handling
-    }
+    } catch (error) {}
     
-    return 'WOLFBOT'; // Default fallback
+    return 'Unknown';
   };
   
-  // Load bot name using the helper function
-  const botName = getBotName();
-  
-  const start = performance.now();
-  const uptime = process.uptime();
-  const h = Math.floor(uptime / 3600);
-  const mnt = Math.floor((uptime % 3600) / 60);
-  const s = Math.floor(uptime % 60);
-  const uptimeStr = `${h}h ${mnt}m ${s}s`;
-  const speed = (performance.now() - start).toFixed(2);
-  const usedMem = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
-  const totalMem = (os.totalmem() / 1024 / 1024 / 1024).toFixed(0);
-  const memPercent = Math.min(((usedMem / (totalMem * 1024)) * 100).toFixed(0), 100);
-  const memBar = "█".repeat(Math.floor(memPercent / 10)) + "░".repeat(10 - Math.floor(memPercent / 10));
-
-  // Load owner from owner.json file (improved version)
-  let ownerNumber = "Unknown";
-  try {
-    const ownerPath = path.join(__dirname, 'owner.json');
-    if (fs.existsSync(ownerPath)) {
-      const ownerData = fs.readFileSync(ownerPath, 'utf8');
-      const ownerInfo = JSON.parse(ownerData);
+  const getBotPrefix = () => {
+    try {
+      const botSettingsPaths = [
+        './bot_settings.json',
+        path.join(__dirname, 'bot_settings.json'),
+        path.join(__dirname, '../bot_settings.json'),
+        path.join(__dirname, '../../bot_settings.json'),
+      ];
       
-      // Try different possible field names in owner.json
-      if (ownerInfo.owner && ownerInfo.owner.trim() !== '') {
-        ownerNumber = ownerInfo.owner.trim();
-      } else if (ownerInfo.number && ownerInfo.number.trim() !== '') {
-        ownerNumber = ownerInfo.number.trim();
-      } else if (ownerInfo.phone && ownerInfo.phone.trim() !== '') {
-        ownerNumber = ownerInfo.phone.trim();
-      } else if (ownerInfo.contact && ownerInfo.contact.trim() !== '') {
-        ownerNumber = ownerInfo.contact.trim();
-      } else if (Array.isArray(ownerInfo) && ownerInfo.length > 0) {
-        // If it's an array, take the first one
-        ownerNumber = typeof ownerInfo[0] === 'string' ? ownerInfo[0] : "Unknown";
+      for (const settingsPath of botSettingsPaths) {
+        if (fs.existsSync(settingsPath)) {
+          try {
+            const settingsData = fs.readFileSync(settingsPath, 'utf8');
+            const settings = JSON.parse(settingsData);
+            
+            if (settings.prefix && settings.prefix.trim() !== '') {
+              return settings.prefix.trim();
+            }
+          } catch (parseError) {}
+        }
       }
+      
+      if (global.prefix) {
+        return global.prefix;
+      }
+      
+      if (process.env.PREFIX) {
+        return process.env.PREFIX;
+      }
+      
+    } catch (error) {}
+    
+    return '.';
+  };
+  
+  const getBotVersion = () => {
+    try {
+      const ownerPath = path.join(__dirname, 'owner.json');
+      if (fs.existsSync(ownerPath)) {
+        const ownerData = fs.readFileSync(ownerPath, 'utf8');
+        const ownerInfo = JSON.parse(ownerData);
+        
+        if (ownerInfo.version && ownerInfo.version.trim() !== '') {
+          return ownerInfo.version.trim();
+        }
+      }
+      
+      const botSettingsPaths = [
+        './bot_settings.json',
+        path.join(__dirname, 'bot_settings.json'),
+        path.join(__dirname, '../bot_settings.json'),
+      ];
+      
+      for (const settingsPath of botSettingsPaths) {
+        if (fs.existsSync(settingsPath)) {
+          try {
+            const settingsData = fs.readFileSync(settingsPath, 'utf8');
+            const settings = JSON.parse(settingsData);
+            
+            if (settings.version && settings.version.trim() !== '') {
+              return settings.version.trim();
+            }
+          } catch (parseError) {}
+        }
+      }
+      
+      if (global.VERSION) {
+        return global.VERSION;
+      }
+      
+      if (global.version) {
+        return global.version;
+      }
+      
+      if (process.env.VERSION) {
+        return process.env.VERSION;
+      }
+      
+    } catch (error) {}
+    
+    return 'v1.0.0';
+  };
+  
+  const getDeploymentPlatform = () => {
+    // Detect deployment platform
+    if (process.env.REPL_ID || process.env.REPLIT_DB_URL) {
+      return {
+        name: 'Replit',
+        status: 'Active',
+        icon: '🌀'
+      };
+    } else if (process.env.HEROKU_APP_NAME) {
+      return {
+        name: 'Heroku',
+        status: 'Active',
+        icon: '🦸'
+      };
+    } else if (process.env.RENDER_SERVICE_ID) {
+      return {
+        name: 'Render',
+        status: 'Active',
+        icon: '⚡'
+      };
+    } else if (process.env.RAILWAY_ENVIRONMENT) {
+      return {
+        name: 'Railway',
+        status: 'Active',
+        icon: '🚂'
+      };
+    } else if (process.env.VERCEL) {
+      return {
+        name: 'Vercel',
+        status: 'Active',
+        icon: '▲'
+      };
+    } else if (process.env.GLITCH_PROJECT_REMIX) {
+      return {
+        name: 'Glitch',
+        status: 'Active',
+        icon: '🎏'
+      };
+    } else if (process.env.KOYEB) {
+      return {
+        name: 'Koyeb',
+        status: 'Active',
+        icon: '☁️'
+      };
+    } else if (process.env.CYCLIC_URL) {
+      return {
+        name: 'Cyclic',
+        status: 'Active',
+        icon: '🔄'
+      };
+    } else if (process.env.PANEL) {
+      return {
+        name: 'PteroPanel',
+        status: 'Active',
+        icon: '🖥️'
+      };
+    } else if (process.env.SSH_CONNECTION || process.env.SSH_CLIENT) {
+      return {
+        name: 'VPS/SSH',
+        status: 'Active',
+        icon: '🖥️'
+      };
+    } else if (process.platform === 'win32') {
+      return {
+        name: 'Windows PC',
+        status: 'Active',
+        icon: '💻'
+      };
+    } else if (process.platform === 'linux') {
+      return {
+        name: 'Linux VPS',
+        status: 'Active',
+        icon: '🐧'
+      };
+    } else if (process.platform === 'darwin') {
+      return {
+        name: 'MacOS',
+        status: 'Active',
+        icon: '🍎'
+      };
+    } else {
+      return {
+        name: 'Local Machine',
+        status: 'Active',
+        icon: '🏠'
+      };
     }
-  } catch (ownerError) {
-    // Fallback to environment variable or global
-    ownerNumber = global.owner || process.env.OWNER_NUMBER || "Unknown";
-  }
-
-  // Load bot mode using the helper function
+  };
+  
+  // Get current time and date
+  const now = new Date();
+  const currentTime = now.toLocaleTimeString('en-US', { 
+    hour12: true, 
+    hour: '2-digit', 
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  
+  const currentDate = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  
+  // Load bot information using helper functions (botName already loaded above)
+  const ownerName = getOwnerName();
+  const botPrefix = getBotPrefix();
+  const botVersion = getBotVersion();
   const botMode = getBotMode();
+  const deploymentPlatform = getDeploymentPlatform();
+  
+  // ========== ADDED HELPER FUNCTIONS FOR SYSTEM METRICS ==========
+  const formatUptime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${hours}h ${minutes}m ${secs}s`;
+  };
+  
+  const getRAMUsage = () => {
+    const used = process.memoryUsage().heapUsed / 1024 / 1024;
+    const total = os.totalmem() / 1024 / 1024 / 1024;
+    const percent = (used / (total * 1024)) * 100;
+    return Math.round(percent);
+  };
+  
+  // ========== SIMPLIFIED MENU WITH FADED EFFECT ==========
+  let infoSection = `╭─⊷ *${currentBotName} MENU*
+│
+│
+│  ├─⊷ *User:* ${m.pushName || "Anonymous"}
+│  ├─⊷ *Date:* ${currentDate}
+│  ├─⊷ *Time:* ${currentTime}
+│  ├─⊷ *Owner:* ${ownerName}
+│  ├─⊷ *Mode:* ${botMode}
+│  ├─⊷ *Prefix:* [ ${botPrefix} ]
+│  ├─⊷ *Version:* ${botVersion}
+│  ├─⊷ *Platform:* ${deploymentPlatform.name}
+│  └─⊷ *Status:* ${deploymentPlatform.status}
+│
+├─⊷ *📈 SYSTEM STATUS*
+│  ├─⊷ *Uptime:* ${formatUptime(process.uptime())}
+│  ├─⊷ *RAM Usage:* ${getRAMUsage()}%
+│  └─⊷ *Speed:* ${(performance.now() - performance.now()).toFixed(2)}ms
+│
+╰─⊷ *Type .help <command> for details*\n\n`;
 
-  const host = process.env.REPL_ID ? "Replit" : process.env.HEROKU_APP_NAME ? "Heroku" : process.env.RENDER ? "Render" : "Panel";
-  const prefix = global.prefix || ".";
-  const version = global.version || "v2.6.2";
+  // Apply faded effect to the info section with MORE invisible chars
+  const fadedInfoSection = createFadedEffect(infoSection);
 
-  const imgPath1 = path.join(__dirname, "media", "wolfbot.jpg");
-  const imgPath2 = path.join(__dirname, "../media/wolfbot.jpg");
-  const imagePath = fs.existsSync(imgPath1) ? imgPath1 : fs.existsSync(imgPath2) ? imgPath2 : null;
-  if (!imagePath) {
-    await sock.sendMessage(jid, { text: "⚠️ Image 'wolfbot.jpg' not found!" }, { quoted: m });
-    return;
-  }
-  const buffer = fs.readFileSync(imagePath);
+  // ========== MENU LIST WITH BOX STYLE AND DOTS ==========
+  const commandsText = `╭─⊷ *🏠 GROUP MANAGEMENT*
+│
+├─⊷ *🛡️ ADMIN & MODERATION*
+│  • add
+│  • promote
+│  • demote
+│  • kick
+│  • kickall
+│  • ban
+│  • unban
+│  • banlist
+│  • clearbanlist
+│  • warn
+│  • resetwarn
+│  • setwarn
+│  • mute
+│  • unmute
+│  • gctime
+│  • antileave
+│  • antilink
+│  • welcome
+│
+├─⊷ *🚫 AUTO-MODERATION*
+│  • antisticker
+│  • antiviewonce
+│  • antilink
+│  • antiimage
+│  • antivideo
+│  • antiaudio
+│  • antimention
+│  • antistatusmention
+│  • antigrouplink
+│
+├─⊷ *📊 GROUP INFO & TOOLS*
+│  • groupinfo
+│  • tagadmin
+│  • tagall
+│  • hidetag
+│  • link
+│  • invite
+│  • revoke
+│  • setdesc
+│  • fangtrace
+│  • getgpp
+│
+╰─⊷
 
-  const infoCaption = `
-│────── ${botName} ──────│
-┃ User: ${m.pushName || "Anonymous"}
-┃ Owner: ${ownerNumber}
-┃ Mode: ${botMode}
-┃ Host: ${host}
-┃ Speed: ${speed} ms
-┃ Prefix: [ ${prefix} ]
-┃ Uptime: ${uptimeStr}
-┃ Version: ${version}
-┃ Usage: ${usedMem} MB of ${totalMem} GB
-┃ RAM: ${memBar} ${memPercent}%
-└────────────────
-`;
+╭─⊷ *🎨 MENU COMMANDS*
+│
+│  • togglemenuinfo
+│  • setmenuimage
+│  • resetmenuinfo
+│  • menustyle
+│
+╰─⊷
 
-  const commandsText = `│ ┌── GROUP MANAGEMENT ──
-│ │ add
-│ │ promote
-│ │ demote
-│ │ kick
-│ │ ban
-│ │ unban
-│ │ banlist
-│ │ clearbanlist
-│ │ warn
-│ │ mute
-│ │ unmute
-│ │ gctime
-│ │ antisticker
-│ │ groupinfo
-│ │ tagadmin
-│ │ tagall
-│ │ hidetag
-│ │ link
-│ │ invite
-│ │ revoke
-│ │ setdesc
-│ │ fangtrace
-│ │ disp
-│ │ kickall
-│ │ getgpp
-│ │ vcf
-│ └─────────────────
+╭─⊷ *👑 OWNER CONTROLS*
+│
+├─⊷ *⚡ CORE MANAGEMENT*
+│  • setbotname
+│  • setowner
+│  • setprefix
+│  • iamowner
+│  • about
+│  • block
+│  • unblock
+│  • blockdetect
+│  • silent
+│  • anticall
+│  • mode
+│  • online
+│  • setpp
+│  • repo
+│
+├─⊷ *🔄 SYSTEM & MAINTENANCE*
+│  • restart
+│  • workingreload
+│  • reloadenv
+│  • getsettings
+│  • setsetting
+│  • test
+│  • disk
+│  • hostip
+│  • findcommands
+│
+╰─⊷
 
-│ ┌── OWNER CONTROLS ──
-│ │ setprefix
-│ │ block
-│ │ unblock
-│ │ silent
-│ │ setbotname
-│ │ setpp
-│ │ restart
-│ │ autotype
-│ │ mode
-│ └─────────────────
+╭─⊷ *⚙️ AUTOMATION*
+│
+│  • autoread
+│  • autotyping
+│  • autorecording
+│  • autoreact
+│  • autoreactstatus
+│  • autobio
+│  • autorec
+│
+╰─⊷
 
-│ ┌── GENERAL UTILITIES ─
-│ │ ping
-│ │ time
-│ │ uptime
-│ │ about
-│ │ repo
-│ │ alive
-│ │ define
-│ │ wiki
-│ │ news
-│ │ weather
-│ │ covid
-│ │ quote
-│ │ translate
-│ │ shorturl
-│ │ qrencode
-│ │ qrdecode
-│ │ reverseimage
-│ │ toaudio
-│ │ tovoice
-│ │ save
-│ │ goodmorning
-│ │ goodnight
-│ └─────────────────
+╭─⊷ *✨ GENERAL UTILITIES*
+│
+├─⊷ *🔍 INFO & SEARCH*
+│  • alive
+│  • ping
+│  • ping2
+│  • time
+│  • connection
+│  • define
+│  • news
+│  • covid
+│  • iplookup
+│  • getip
+│  • getpp
+│  • getgpp
+│  • prefixinfo
+│
+├─⊷ *🔗 CONVERSION & MEDIA*
+│  • shorturl
+│  • qrencode
+│  • take
+│  • imgbb
+│  • tiktok
+│  • save
+│
+├─⊷ *📝 PERSONAL TOOLS*
+│  • pair
+│  • resetwarn
+│  • setwarn
+│
+╰─⊷
 
-│ ┌── MUSIC & FUN ──
-│ │ play
-│ │ song
-│ │ lyrics
-│ │ spotify
-│ │ video
-│ │ video2
-│ │ bassboost
-│ │ trebleboost
-│ └─────────────────
+╭─⊷ *🎵 MUSIC & MEDIA*
+│
+│  • play
+│  • song
+│  • lyrics
+│  • spotify
+│  • video
+│  • video2
+│  • bassboost
+│  • trebleboost
+│
+╰─⊷
 
-│ ┌── MEDIA & AI ──
-│ │ tiktokdl
-│ │ instagram
-│ │ youtube
-│ │ facebook
-│ │ snapchat
-│ │ gemini
-│ │ gpt
-│ │ deepseek
-│ │ wolfbot
-│ │ videogen
-│ │ suno
-│ │ analyze
-│ └─────────────────
+╭─⊷ *🤖 MEDIA & AI COMMANDS*
+│
+├─⊷ *⬇️ MEDIA DOWNLOADS*
+│  • youtube
+│  • tiktok
+│  • instagram
+│  • facebook
+│  • snapchat
+│  • apk
+│
+├─⊷ *🎨 AI GENERATION*
+│  • gpt
+│  • gemini
+│  • deepseek
+│  • deepseek+
+│  • analyze
+│  • suno
+│  • wolfbot
+│  • videogen
+│
+╰─⊷
 
-│ ┌── IMAGE TOOLS ──
-│ │ image
-│ │ imagegenerate
-│ │ anime
-│ │ art
-│ │ real
-│ └─────────────────
+╭─⊷ *🖼️ IMAGE TOOLS*
+│
+│  • image
+│  • imagegenerate
+│  • anime
+│  • art
+│  • real
+│
+╰─⊷
 
-│ ┌── SECURITY & HACKING ──
-│ │ ipinfo
-│ │ shodan
-│ │ iplookup
-│ │ getip
-│ │ pwcheck
-│ │ portscan
-│ │ subdomains
-│ └─────────────────
+╭─⊷ *🛡️ SECURITY & HACKING*
+│
+├─⊷ *🌐 NETWORK & INFO*
+│  • ipinfo
+│  • shodan
+│  • iplookup
+│  • getip
+│
+╰─⊷
 
-│ ┌── LOGO DESIGN ──
-│ │ goldlogo
-│ │ silverlogo
-│ │ platinumlogo
-│ │ chromelogo
-│ │ diamondlogo
-│ │ bronzelogo
-│ │ steelogo
-│ │ copperlogo
-│ │ titaniumlogo
-│ │ firelogo
-│ │ icelogo
-│ │ iceglowlogo
-│ │ lightninglogo
-│ │ aqualogo
-│ │ rainbowlogo
-│ │ sunlogo
-│ │ moonlogo
-│ │ volcanologo
-│ │ thunderlogo
-│ │ windlogo
-│ │ earthlogo
-│ │ waterlogo
-│ │ forestlogo
-│ │ dragonlogo
-│ │ phoenixlogo
-│ │ wizardlogo
-│ │ crystallogo
-│ │ magiclogo
-│ │ darkmagiclogo
-│ │ shadowlogo
-│ │ smokelogo
-│ │ bloodlogo
-│ │ shadowflamelogo
-│ │ venomlogo
-│ │ skullogo
-│ │ nightlogo
-│ │ hellfirelogo
-│ │ neonlogo
-│ │ glowlogo
-│ │ lightlogo
-│ │ neonflamelogo
-│ │ cyberlogo
-│ │ matrixlogo
-│ │ techlogo
-│ │ hologramlogo
-│ │ vaporlogo
-│ │ pixelogo
-│ │ futuristiclogo
-│ │ digitalogo
-│ │ cartoonlogo
-│ │ comiclogo
-│ │ graffitilogo
-│ │ retrologo
-│ │ popartlogo
-│ └─────────────────
+╭─⊷ *🎨 LOGO DESIGN STUDIO*
+│
+├─⊷ *🌟 PREMIUM METALS*
+│  • goldlogo
+│  • silverlogo
+│  • platinumlogo
+│  • chromelogo
+│  • diamondlogo
+│  • bronzelogo
+│  • steelogo
+│  • copperlogo
+│  • titaniumlogo
+│
+├─⊷ *🔥 ELEMENTAL EFFECTS*
+│  • firelogo
+│  • icelogo
+│  • iceglowlogo
+│  • lightninglogo
+│  • aqualogo
+│  • rainbowlogo
+│  • sunlogo
+│  • moonlogo
+│
+├─⊷ *🎭 MYTHICAL & MAGICAL*
+│  • dragonlogo
+│  • phoenixlogo
+│  • wizardlogo
+│  • crystallogo
+│  • darkmagiclogo
+│
+├─⊷ *🌌 DARK & GOTHIC*
+│  • shadowlogo
+│  • smokelogo
+│  • bloodlogo
+│
+├─⊷ *💫 GLOW & NEON EFFECTS*
+│  • neonlogo
+│  • glowlogo
+│
+├─⊷ *🤖 TECH & FUTURISTIC*
+│  • matrixlogo
+│
+╰─⊷
 
-│── 🐺 POWERED BY WOLFTECH 🐺 ──
-`;
+╭─⊷ *🐙 GITHUB COMMANDS*
+│
+│  • gitclone
+│  • gitinfo
+│  • repo
+│  • commits
+│  • stars
+│  • watchers
+│  • release
+│
+╰─⊷
 
-  await sock.sendMessage(jid, { image: buffer, caption: infoCaption + commandsText, mimetype: "image/jpeg" }, { quoted: m });
+╭─⊷ *🌸 ANIME COMMANDS*
+│
+│  • awoo
+│  • bj
+│  • bully
+│  • cringe
+│  • cry
+│  • dance
+│  • glomp
+│  • highfive
+│  • kill
+│  • kiss
+│  • lick
+│  • megumin
+│  • neko
+│  • pat
+│  • shinobu
+│  • trap
+│  • trap2
+│  • waifu
+│  • wink
+│  • yeet
+│
+╰─⊷
+
+🐺 *POWERED BY WOLF TECH* 🐺`;
+
+  // ========== APPLY "READ MORE" EFFECT ==========
+  // Combine faded info section (visible) and commands (hidden) with "Read more"
+  finalText = createReadMoreEffect(fadedInfoSection, commandsText);
+  // ========== END "READ MORE" EFFECT ==========
+
+  // Send the menu with fake contact
+  await sock.sendMessage(jid, { 
+    text: finalText 
+  }, { 
+    quoted: fkontak 
+  });
+  
+  console.log(`✅ ${currentBotName} menu sent with faded effect and dot style`);
   break;
 }
 
