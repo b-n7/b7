@@ -1,9 +1,0 @@
-{
-  "autoCleanEnabled": true,
-  "maxAgeHours": 24,
-  "maxStorageMB": 500,
-  "showPhoneNumbers": true,
-  "ownerOnly": true,
-  "autoCleanRetrieved": true,
-  "initialized": false
-}
